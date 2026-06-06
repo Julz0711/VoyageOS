@@ -9,18 +9,24 @@ import { Button } from '@/components/ui/button';
 import { Input, Label } from '@/components/ui/input';
 
 type Candidate = { id: string; title: string; category: string };
+type Base = { lat: number; lng: number; label: string };
 
-function directionsHref(stops: { lat?: number; lng?: number }[]): string | null {
+/** Google Maps route that starts and ends at the cabin (base) for a clean round-trip loop. */
+function directionsHref(base: Base, stops: { lat?: number; lng?: number }[]): string | null {
   const pts = stops.filter((s) => s.lat != null && s.lng != null).map((s) => `${s.lat},${s.lng}`);
-  return pts.length >= 2 ? `https://www.google.com/maps/dir/${pts.join('/')}` : null;
+  if (pts.length === 0) return null;
+  const origin = `${base.lat},${base.lng}`;
+  return `https://www.google.com/maps/dir/${origin}/${pts.join('/')}/${origin}`;
 }
 
 export function RoadtripsView({
   roadtrips,
   candidates,
+  base,
 }: {
   roadtrips: RoadtripDTO[];
   candidates: Candidate[];
+  base: Base;
 }) {
   const [optimistic, removeOptimistic] = useOptimistic(roadtrips, (list: RoadtripDTO[], id: string) =>
     list.filter((r) => r.id !== id),
@@ -70,7 +76,7 @@ export function RoadtripsView({
       ) : (
         <div className="space-y-4">
           {optimistic.map((rt) => {
-            const href = directionsHref(rt.stops);
+            const href = directionsHref(base, rt.stops);
             return (
               <section key={rt.id} className="rounded-lg border border-border bg-surface p-6 shadow-card">
                 <div className="mb-3 flex items-start justify-between gap-3">
@@ -99,6 +105,9 @@ export function RoadtripsView({
                     <DeleteButton onConfirm={() => onDelete(rt.id)} />
                   </div>
                 </div>
+                <p className="mb-1.5 font-mono text-[11px] text-muted">
+                  Round trip from {base.label}
+                </p>
                 <ol className="space-y-1.5">
                   {rt.stops.map((s, i) => {
                     const Icon = getCategory(s.category).icon;

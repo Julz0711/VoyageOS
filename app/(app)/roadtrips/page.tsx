@@ -20,5 +20,11 @@ export default async function RoadtripsPage() {
     .filter((i) => i.category !== 'road-trip')
     .map((i) => ({ id: i.id, title: i.title, category: i.category }));
 
-  return <RoadtripsView roadtrips={roadtrips} candidates={candidates} />;
+  return (
+    <RoadtripsView
+      roadtrips={roadtrips}
+      candidates={candidates}
+      base={{ lat: trip.baseLocation.lat, lng: trip.baseLocation.lng, label: trip.baseLocation.label }}
+    />
+  );
 }
