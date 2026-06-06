@@ -6,23 +6,59 @@ import { join, dirname } from 'node:path';
 /**
  * Backend-agnostic object storage for private documents.
  *
- * - **R2/S3** when all `R2_*` env vars are set: objects are private; downloads go through
- *   short-lived presigned URLs (PRD §5.9 — never a public URL).
- * - **Local disk** otherwise (keyless dev): files live under `.voyageos/documents/`, served
- *   only through the authenticated `/api/documents/[id]` route (no signing, but never public).
+ * - **Any S3-compatible provider** when configured (Cloudflare R2, Supabase Storage, Backblaze
+ *   B2, iDrive e2, MinIO, AWS S3…): objects are private; downloads go through short-lived
+ *   presigned URLs (PRD §5.9 — never a public URL).
+ *     - Generic: `S3_ENDPOINT`, `S3_REGION`, `S3_ACCESS_KEY_ID`, `S3_SECRET_ACCESS_KEY`,
+ *       `S3_BUCKET`, optional `S3_FORCE_PATH_STYLE` (default true).
+ *     - Cloudflare R2 shortcut: `R2_ACCOUNT_ID`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`,
+ *       `R2_BUCKET` (endpoint derived automatically).
+ * - **Local disk** otherwise (keyless dev): files live under `.voyageos/documents/`, served only
+ *   through the authenticated `/api/documents/[id]` route (no signing, but never public).
  *
  * Only the object KEY is ever stored on a document; the key never reaches the client.
  */
 
-const R2 = {
-  accountId: process.env.R2_ACCOUNT_ID,
-  accessKeyId: process.env.R2_ACCESS_KEY_ID,
-  secretAccessKey: process.env.R2_SECRET_ACCESS_KEY,
-  bucket: process.env.R2_BUCKET,
-};
+interface S3Config {
+  endpoint: string;
+  region: string;
+  accessKeyId: string;
+  secretAccessKey: string;
+  bucket: string;
+  forcePathStyle: boolean;
+}
+
+/** Resolves an S3-compatible config from env, or null to fall back to local disk. */
+function resolveS3(): S3Config | null {
+  const e = process.env;
+  if (e.S3_ENDPOINT && e.S3_ACCESS_KEY_ID && e.S3_SECRET_ACCESS_KEY && e.S3_BUCKET) {
+    return {
+      endpoint: e.S3_ENDPOINT,
+      region: e.S3_REGION || 'auto',
+      accessKeyId: e.S3_ACCESS_KEY_ID,
+      secretAccessKey: e.S3_SECRET_ACCESS_KEY,
+      bucket: e.S3_BUCKET,
+      // Most non-AWS providers (Supabase, MinIO…) need path-style addressing.
+      forcePathStyle: e.S3_FORCE_PATH_STYLE !== 'false',
+    };
+  }
+  if (e.R2_ACCOUNT_ID && e.R2_ACCESS_KEY_ID && e.R2_SECRET_ACCESS_KEY && e.R2_BUCKET) {
+    return {
+      endpoint: `https://${e.R2_ACCOUNT_ID}.r2.cloudflarestorage.com`,
+      region: 'auto',
+      accessKeyId: e.R2_ACCESS_KEY_ID,
+      secretAccessKey: e.R2_SECRET_ACCESS_KEY,
+      bucket: e.R2_BUCKET,
+      forcePathStyle: false,
+    };
+  }
+  return null;
+}
+
+const S3 = resolveS3();
 
 export function isRemoteStorage(): boolean {
-  return Boolean(R2.accountId && R2.accessKeyId && R2.secretAccessKey && R2.bucket);
+  return S3 !== null;
 }
 
 const LOCAL_ROOT = join(process.cwd(), '.voyageos', 'documents');
@@ -34,23 +70,25 @@ export function buildStorageKey(userId: string, tripId: string, fileName: string
   return `${userId}/${tripId}/${randomUUID()}${safeExt}`;
 }
 
-// --- S3/R2 client (lazy-loaded so local dev never imports the AWS SDK) ---
+// --- S3 client (lazy-loaded so local dev never imports the AWS SDK) ---
 
 async function s3() {
+  const cfg = S3!;
   const { S3Client } = await import('@aws-sdk/client-s3');
   return new S3Client({
-    region: 'auto',
-    endpoint: `https://${R2.accountId}.r2.cloudflarestorage.com`,
-    credentials: { accessKeyId: R2.accessKeyId!, secretAccessKey: R2.secretAccessKey! },
+    region: cfg.region,
+    endpoint: cfg.endpoint,
+    forcePathStyle: cfg.forcePathStyle,
+    credentials: { accessKeyId: cfg.accessKeyId, secretAccessKey: cfg.secretAccessKey },
   });
 }
 
 export async function putObject(key: string, body: Buffer, contentType: string): Promise<void> {
-  if (isRemoteStorage()) {
+  if (S3) {
     const { PutObjectCommand } = await import('@aws-sdk/client-s3');
     const client = await s3();
     await client.send(
-      new PutObjectCommand({ Bucket: R2.bucket!, Key: key, Body: body, ContentType: contentType }),
+      new PutObjectCommand({ Bucket: S3.bucket, Key: key, Body: body, ContentType: contentType }),
     );
     return;
   }
@@ -60,10 +98,10 @@ export async function putObject(key: string, body: Buffer, contentType: string):
 }
 
 export async function deleteObject(key: string): Promise<void> {
-  if (isRemoteStorage()) {
+  if (S3) {
     const { DeleteObjectCommand } = await import('@aws-sdk/client-s3');
     const client = await s3();
-    await client.send(new DeleteObjectCommand({ Bucket: R2.bucket!, Key: key }));
+    await client.send(new DeleteObjectCommand({ Bucket: S3.bucket, Key: key }));
     return;
   }
   try {
@@ -73,12 +111,12 @@ export async function deleteObject(key: string): Promise<void> {
   }
 }
 
-/** Reads object bytes (used by the local download route; R2 prefers signed URLs). */
+/** Reads object bytes (used by the local download route; remote prefers signed URLs). */
 export async function getObjectBytes(key: string): Promise<Buffer | null> {
-  if (isRemoteStorage()) {
+  if (S3) {
     const { GetObjectCommand } = await import('@aws-sdk/client-s3');
     const client = await s3();
-    const res = await client.send(new GetObjectCommand({ Bucket: R2.bucket!, Key: key }));
+    const res = await client.send(new GetObjectCommand({ Bucket: S3.bucket, Key: key }));
     const bytes = await res.Body?.transformToByteArray();
     return bytes ? Buffer.from(bytes) : null;
   }
@@ -90,7 +128,7 @@ export async function getObjectBytes(key: string): Promise<Buffer | null> {
 }
 
 /**
- * Short-lived presigned GET URL (R2 only). Returns null for local storage, where the route
+ * Short-lived presigned GET URL (remote only). Returns null for local storage, where the route
  * streams bytes instead. `download` forces an attachment disposition.
  */
 export async function getSignedDownloadUrl(
@@ -98,12 +136,12 @@ export async function getSignedDownloadUrl(
   fileName: string,
   opts: { download?: boolean; expiresSeconds?: number } = {},
 ): Promise<string | null> {
-  if (!isRemoteStorage()) return null;
+  if (!S3) return null;
   const { GetObjectCommand } = await import('@aws-sdk/client-s3');
   const { getSignedUrl } = await import('@aws-sdk/s3-request-presigner');
   const disposition = `${opts.download ? 'attachment' : 'inline'}; filename="${fileName.replace(/"/g, '')}"`;
   const command = new GetObjectCommand({
-    Bucket: R2.bucket!,
+    Bucket: S3.bucket,
     Key: key,
     ResponseContentDisposition: disposition,
   });
