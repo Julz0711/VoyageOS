@@ -2,8 +2,9 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Compass, Settings2 } from 'lucide-react';
+import { Settings2 } from 'lucide-react';
 import { navItems } from './nav-items';
+import { Wordmark } from '@/components/brand/Logo';
 import { cn } from '@/lib/utils';
 
 function isActive(pathname: string, href: string): boolean {
@@ -16,13 +17,8 @@ export function Sidebar() {
 
   return (
     <aside className="sticky top-0 hidden h-dvh w-64 shrink-0 flex-col px-5 py-7 md:flex">
-      <Link href="/dashboard" className="mb-7 flex items-center gap-2.5 px-2">
-        <span className="flex size-9 items-center justify-center rounded-lg bg-primary text-primary-foreground">
-          <Compass className="size-[18px]" aria-hidden />
-        </span>
-        <span className="font-display text-xl font-semibold leading-none text-ink">
-          Voyage<span className="text-muted">OS</span>
-        </span>
+      <Link href="/dashboard" className="mb-7 px-2">
+        <Wordmark />
       </Link>
 
       <nav className="flex flex-1 flex-col gap-1" aria-label="Primary">

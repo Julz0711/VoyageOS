@@ -151,4 +151,9 @@ export const aiLimits = {
    */
   maxStepsByok: 8,
   maxStepsFree: 5,
+  /**
+   * When usage warnings are enabled, warn the user if a single turn burns more than this many
+   * tokens — a heads-up that free provider tiers (per-minute / per-day token caps) may rate-limit.
+   */
+  warnTokenThreshold: 8000,
 } as const;

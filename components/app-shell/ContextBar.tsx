@@ -2,11 +2,12 @@
 
 import { useState, useTransition } from 'react';
 import Link from 'next/link';
-import { ChevronDown, Plus, Check, Compass, Settings2, MapPin } from 'lucide-react';
+import { ChevronDown, Plus, Check, Settings2, MapPin } from 'lucide-react';
 import type { TripDTO } from '@/lib/dto';
 import { strings } from '@/lib/strings';
 import { formatDateRange, tripCountdown } from '@/lib/dates';
 import { setActiveTrip } from '@/lib/trips/actions';
+import { LogoMark } from '@/components/brand/Logo';
 import { cn } from '@/lib/utils';
 
 function coordLabel(lat: number, lng: number): string {
@@ -36,9 +37,7 @@ export function ContextBar({
       {/* Mobile brand row (sidebar is hidden on mobile) */}
       <div className="flex items-center justify-between px-5 pt-3 md:hidden">
         <Link href="/dashboard" className="flex items-center gap-2">
-          <span className="flex size-7 items-center justify-center rounded-md bg-primary text-primary-foreground">
-            <Compass className="size-3.5" aria-hidden />
-          </span>
+          <LogoMark className="size-7" />
           <span className="font-display text-lg font-semibold text-ink">
             Voyage<span className="text-muted">OS</span>
           </span>

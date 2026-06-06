@@ -18,17 +18,27 @@ import { aiLimits } from '@/config/ai';
 export const runtime = 'nodejs';
 export const maxDuration = 60;
 
+// NOTE: chat bubbles render plain text (not markdown), so keep these free of **, _, and emoji.
 const STUB_MESSAGE =
-  'The travel assistant needs your own AI key to chat. Add one in **Settings → AI assistant** — ' +
+  'The travel assistant needs your own AI key to chat. Add one in Settings → AI assistant — ' +
   'several providers (Groq, Mistral, Cerebras, OpenRouter, Gemini) have a free tier. Everything ' +
   'else in VoyageOS works without a key.';
 
 const RESET_MESSAGE =
-  'I lost track of this conversation’s history. Please use **Clear chat** (top-right) and ask again.';
+  'I lost track of this conversation’s history. Please use Clear chat (top-right) and ask again.';
 
 const STEP_LIMIT_NOTICE =
-  '\n\n_(I paused here after several research steps so this turn didn’t run forever. Reply_ ' +
-  '**continue** _and I’ll pick up where I left off — e.g. finish searching and propose the items.)_';
+  'Paused — I hit this turn’s research limit, so I stopped before running too long. ' +
+  'Reply continue and I’ll keep going from where I left off.';
+
+/** Heads-up after a token-heavy turn (only when usage warnings are enabled). */
+function usageWarning(totalTokens: number): string {
+  const k = Math.round(totalTokens / 100) / 10; // ~one decimal, in thousands
+  return (
+    `This turn used about ${k}k tokens. Free provider tiers cap tokens per minute/day, so heavy ` +
+    'use may get rate-limited — your own paid key avoids that. You can turn off warnings in Settings.'
+  );
+}
 
 /** Maps a thrown value / finishReason to a friendly chat message, or null to pass through. */
 function friendlyError(msg: string): string | null {
@@ -41,8 +51,7 @@ function friendlyError(msg: string): string | null {
     const again = msg.match(/try again in ([0-9hms.\s]+?)\./i)?.[1]?.trim();
     return (
       `You’ve hit the free tier’s usage limit${again ? ` — try again in ${again}` : ''}. ` +
-      'Add your own key in **Settings → AI assistant** (Active assistant → Your key) for much ' +
-      'higher limits.'
+      'Add your own key in Settings → AI assistant for much higher limits.'
     );
   }
   // Smaller free models often can't reliably build tool calls.
@@ -52,8 +61,8 @@ function friendlyError(msg: string): string | null {
   ) {
     return (
       'The model couldn’t build a valid tool call — common with smaller free models. In ' +
-      '**Settings → AI assistant**, pick a larger model or a stronger provider (Claude is the ' +
-      'most reliable) for adding items.'
+      'Settings → AI assistant, pick a larger model or a stronger provider (Claude is the most ' +
+      'reliable) for adding items.'
     );
   }
   return null;
@@ -106,7 +115,9 @@ export async function POST(req: Request) {
 
   const { messages }: { messages: UIMessage[] } = await req.json();
 
-  const resolved = getModel(await getAiUser(userId));
+  const aiUser = await getAiUser(userId);
+  const resolved = getModel(aiUser);
+  const showWarnings = aiUser.aiWarnings !== false; // default on
 
   // Keyless fallback: stream a single friendly message instead of failing.
   if (!resolved.available || !resolved.model) {
@@ -150,16 +161,32 @@ export async function POST(req: Request) {
           console.error('[chat] streamText error:', event);
         },
       });
-      writer.merge(result.toUIMessageStream());
+      // Attach this turn's token usage to the assistant message so the UI can show it.
+      writer.merge(
+        result.toUIMessageStream({
+          messageMetadata: ({ part }) =>
+            part.type === 'finish' ? { totalTokens: part.totalUsage.totalTokens } : undefined,
+        }),
+      );
 
-      // If the loop was halted by the step cap while the model still wanted to call tools,
-      // tell the user explicitly instead of ending silently mid-research.
-      const finishReason = await result.finishReason;
-      if (finishReason === 'tool-calls') {
-        const id = 'step-limit-notice';
-        writer.write({ type: 'text-start', id });
-        writer.write({ type: 'text-delta', id, delta: STEP_LIMIT_NOTICE });
-        writer.write({ type: 'text-end', id });
+      // Optional usage / rate-limit warnings (Settings → AI assistant). When off, the chat runs
+      // without any of these interjections.
+      if (showWarnings) {
+        const [finishReason, usage] = await Promise.all([result.finishReason, result.usage]);
+        const notes: string[] = [];
+        // Halted by the step cap mid-research → invite the user to continue.
+        if (finishReason === 'tool-calls') notes.push(STEP_LIMIT_NOTICE);
+        // Token-heavy turn → heads-up that free tiers may rate-limit.
+        const total = usage?.totalTokens;
+        if (typeof total === 'number' && total >= aiLimits.warnTokenThreshold) {
+          notes.push(usageWarning(total));
+        }
+        if (notes.length > 0) {
+          const id = 'usage-notice';
+          writer.write({ type: 'text-start', id });
+          writer.write({ type: 'text-delta', id, delta: notes.join('\n\n') });
+          writer.write({ type: 'text-end', id });
+        }
       }
     },
     onFinish: async ({ responseMessage }) => {

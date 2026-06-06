@@ -105,6 +105,13 @@ h1, h2, h3 {
   animation: vos-fade-up 0.5s cubic-bezier(0.2, 0.7, 0.2, 1) both;
 }
 
+/* Continuous spin for loading indicators (Lucide Loader2 etc.). */
+@keyframes vos-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,
@@ -113,5 +120,15 @@ h1, h2, h3 {
     animation-iteration-count: 1 !important;
     transition-duration: 0.001ms !important;
     scroll-behavior: auto !important;
+  }
+
+  /* Loading spinners convey status, not decoration — keep them moving even under reduced motion. */
+  .animate-spin {
+    animation: vos-spin 0.8s linear infinite !important;
+  }
+
+  /* Buttons keep their brief hover/press transition (intentional affordance, not ambient motion). */
+  .btn-elevate {
+    transition-duration: 200ms !important;
   }
 }

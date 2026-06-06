@@ -52,6 +52,28 @@ export interface ExploreItemDTO {
   externalLinks: { label: string; url: string }[];
   source: ItemSource;
   images: string[];
+  /** For road-trip items: ordered Explore item ids that make up the route. */
+  routeStopIds?: string[];
+  /** ISO timestamp; used for "recently added" sorting. */
+  createdAt?: string;
+}
+
+export interface RoadtripStopDTO {
+  id: string;
+  title: string;
+  category: string;
+  lat?: number;
+  lng?: number;
+  areaLabel?: string;
+}
+
+export interface RoadtripDTO {
+  id: string;
+  tripId: string;
+  name: string;
+  notes?: string;
+  exploreItemId?: string;
+  stops: RoadtripStopDTO[];
 }
 
 export interface PackingItemDTO {

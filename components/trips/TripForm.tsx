@@ -4,21 +4,25 @@ import { useActionState, useState, useTransition } from 'react';
 import { LocateFixed, Loader2, Check } from 'lucide-react';
 import {
   createTrip,
+  updateTrip,
   lookupBaseCoordinates,
   type CreateTripState,
 } from '@/lib/trips/actions';
+import type { TripDTO } from '@/lib/dto';
 import { strings } from '@/lib/strings';
 import { Button } from '@/components/ui/button';
 import { Input, Label } from '@/components/ui/input';
 
-export function CreateTripForm() {
-  const [state, action, pending] = useActionState<CreateTripState, FormData>(createTrip, undefined);
+/** Create (no `trip`) or edit (with `trip`) a trip. Shares the geocode auto-detect flow. */
+export function TripForm({ trip }: { trip?: TripDTO }) {
+  const action = trip ? updateTrip.bind(null, trip.id) : createTrip;
+  const [state, formAction, pending] = useActionState<CreateTripState, FormData>(action, undefined);
   const [detecting, startDetect] = useTransition();
 
-  const [destination, setDestination] = useState('');
-  const [baseLabel, setBaseLabel] = useState('');
-  const [lat, setLat] = useState('');
-  const [lng, setLng] = useState('');
+  const [destination, setDestination] = useState(trip?.destination ?? '');
+  const [baseLabel, setBaseLabel] = useState(trip?.baseLocation.label ?? '');
+  const [lat, setLat] = useState(trip ? String(trip.baseLocation.lat) : '');
+  const [lng, setLng] = useState(trip ? String(trip.baseLocation.lng) : '');
   const [resolved, setResolved] = useState<string | null>(null);
   const [detectError, setDetectError] = useState<string | null>(null);
 
@@ -38,10 +42,10 @@ export function CreateTripForm() {
   }
 
   return (
-    <form action={action} className="space-y-4">
+    <form action={formAction} className="space-y-4">
       <div>
         <Label htmlFor="name">{strings.trips.name}</Label>
-        <Input id="name" name="name" required placeholder="A long weekend in Lisbon" />
+        <Input id="name" name="name" required defaultValue={trip?.name} placeholder="A long weekend in Lisbon" />
       </div>
 
       <div>
@@ -59,11 +63,11 @@ export function CreateTripForm() {
       <div className="grid grid-cols-2 gap-3">
         <div>
           <Label htmlFor="dateStart">{strings.trips.startDate}</Label>
-          <Input id="dateStart" name="dateStart" type="date" required />
+          <Input id="dateStart" name="dateStart" type="date" required defaultValue={trip?.dateStart.slice(0, 10)} />
         </div>
         <div>
           <Label htmlFor="dateEnd">{strings.trips.endDate}</Label>
-          <Input id="dateEnd" name="dateEnd" type="date" required />
+          <Input id="dateEnd" name="dateEnd" type="date" required defaultValue={trip?.dateEnd.slice(0, 10)} />
         </div>
       </div>
 
@@ -145,7 +149,7 @@ export function CreateTripForm() {
 
       <div className="flex justify-end">
         <Button type="submit" disabled={pending}>
-          {pending ? strings.common.loading : strings.trips.create}
+          {pending ? strings.common.loading : trip ? 'Save changes' : strings.trips.create}
         </Button>
       </div>
     </form>

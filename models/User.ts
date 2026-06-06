@@ -12,6 +12,8 @@ export interface IUser {
   aiModel?: string; // selected model for the active provider
   byokKeyEnc?: string;
   byokKeyHint?: string; // e.g. "····abcd" for display only
+  /** Show AI usage / rate-limit warnings in chat (token-heavy turns, step-limit pause). Default true. */
+  aiWarnings?: boolean;
   /** Whether the first-run starter trip has been seeded (once per user, ever). */
   hasSeeded?: boolean;
 }
@@ -26,6 +28,7 @@ const UserSchema = new Schema<IUser>(
     aiModel: { type: String },
     byokKeyEnc: { type: String },
     byokKeyHint: { type: String },
+    aiWarnings: { type: Boolean, default: true },
     hasSeeded: { type: Boolean, default: false },
   },
   baseSchemaOptions,

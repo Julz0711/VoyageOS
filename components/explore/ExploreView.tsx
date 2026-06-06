@@ -14,6 +14,7 @@ import { AddItemForm } from './AddItemForm';
 
 type WeatherFilter = 'all' | 'fine' | 'wet' | 'surprise';
 type DistanceFilter = 'all' | '≤15' | '≤45' | 'daytrip';
+type SortMode = 'area' | 'recent';
 
 type OptimisticAction =
   | { type: 'favorite'; id: string; next: boolean }
@@ -64,6 +65,7 @@ export function ExploreView({ items }: { items: ExploreItemDTO[] }) {
   const [category, setCategory] = useState<string>('all');
   const [distance, setDistance] = useState<DistanceFilter>('all');
   const [weather, setWeather] = useState<WeatherFilter>('all');
+  const [sort, setSort] = useState<SortMode>('area');
   const [favoritesOnly, setFavoritesOnly] = useState(false);
   const [showAdd, setShowAdd] = useState(false);
   const [surpriseIds, setSurpriseIds] = useState<string[]>([]);
@@ -110,7 +112,12 @@ export function ExploreView({ items }: { items: ExploreItemDTO[] }) {
   }, [baseFiltered, weather, surpriseIds]);
 
   const orderIndex = useMemo(() => new Map(filtered.map((it, i) => [it.id, i])), [filtered]);
+  const itemsById = useMemo(() => new Map(optimisticItems.map((i) => [i.id, i])), [optimisticItems]);
   const selectedItem = selectedId ? optimisticItems.find((i) => i.id === selectedId) ?? null : null;
+  const selectedRouteStops = selectedItem?.routeStopIds
+    ?.map((id) => itemsById.get(id))
+    .filter((i): i is ExploreItemDTO => Boolean(i))
+    .map((i) => ({ id: i.id, title: i.title, category: i.category }));
 
   function rollSurprise() {
     const picked = [...baseFiltered]
@@ -122,6 +129,10 @@ export function ExploreView({ items }: { items: ExploreItemDTO[] }) {
   }
 
   const sections = useMemo(() => {
+    if (sort === 'recent') {
+      const recent = [...filtered].sort((a, b) => (b.createdAt ?? '').localeCompare(a.createdAt ?? ''));
+      return recent.length > 0 ? [{ title: 'Recently added', items: recent }] : [];
+    }
     const doorstep = filtered.filter(
       (i) => i.distanceFromBase?.band === 'doorstep' || i.distanceFromBase?.band === '≤15',
     );
@@ -132,7 +143,7 @@ export function ExploreView({ items }: { items: ExploreItemDTO[] }) {
       { title: 'Further afield', items: further },
       { title: 'Day trips', items: daytrips },
     ].filter((s) => s.items.length > 0);
-  }, [filtered]);
+  }, [filtered, sort]);
 
   return (
     <div className="space-y-8">
@@ -193,6 +204,13 @@ export function ExploreView({ items }: { items: ExploreItemDTO[] }) {
           </Select>
         </Field>
 
+        <Field label="Sort">
+          <Select value={sort} onChange={(e) => setSort(e.target.value as SortMode)}>
+            <option value="area">By area</option>
+            <option value="recent">Recently added</option>
+          </Select>
+        </Field>
+
         <Chip active={favoritesOnly} onClick={() => setFavoritesOnly((v) => !v)}>
           <Heart className={cn('size-3.5', favoritesOnly && 'fill-current')} aria-hidden /> Favorites
         </Chip>
@@ -230,6 +248,7 @@ export function ExploreView({ items }: { items: ExploreItemDTO[] }) {
       {selectedItem && (
         <ExploreDetailModal
           item={selectedItem}
+          routeStops={selectedRouteStops}
           onClose={() => setSelectedId(null)}
           onToggleFavorite={onToggleFavorite}
           onDelete={onDelete}

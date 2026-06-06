@@ -2,7 +2,7 @@
 
 import { useActionState, useState, useTransition } from 'react';
 import { ExternalLink } from 'lucide-react';
-import { saveByokKey, clearByokKey, setAiModel, type SaveKeyState } from '@/lib/ai/settings';
+import { saveByokKey, clearByokKey, setAiModel, setAiWarnings, type SaveKeyState } from '@/lib/ai/settings';
 import { providers, type ModelOption, type ProviderId } from '@/config/ai';
 import type { AiInfo } from '@/lib/ai/userSettings';
 import { Button } from '@/components/ui/button';
@@ -83,6 +83,27 @@ export function ByokForm({
           </p>
         )}
         <KeyForm replacing={info.hasKey} openRouterModels={openRouterModels} />
+      </div>
+
+      {/* Behavior */}
+      <div className="rounded-lg border border-border bg-surface p-5">
+        <p className="eyebrow mb-3 text-muted">Chat behavior</p>
+        <label className="flex items-start gap-3">
+          <input
+            type="checkbox"
+            defaultChecked={info.warnings}
+            onChange={(e) => startTransition(() => void setAiWarnings(e.target.checked))}
+            className="mt-0.5 size-4 accent-[var(--vos-color-primary)]"
+          />
+          <span className="text-sm text-ink">
+            Show usage &amp; rate-limit warnings
+            <span className="mt-0.5 block text-xs text-muted">
+              When <strong>on</strong>, the assistant warns you after a token-heavy turn (free tiers
+              can rate-limit) and notes when it pauses at its step limit. When <strong>off</strong>,
+              no warnings — it just does its thing.
+            </span>
+          </span>
+        </label>
       </div>
     </div>
   );

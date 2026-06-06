@@ -15,6 +15,7 @@ export const strings = {
     pack: 'Pack',
     budget: 'Budget',
     checklist: 'Checklist',
+    roadtrips: 'Roadtrips',
     docs: 'Docs',
     more: 'More',
     settings: 'Settings',

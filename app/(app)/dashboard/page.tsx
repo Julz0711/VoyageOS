@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { Plus } from 'lucide-react';
+import { Plus, Pencil } from 'lucide-react';
 import { requireSession } from '@/lib/auth/dal';
 import { getTrips } from '@/lib/trips/queries';
 import { getTripStats } from '@/lib/trips/stats';
@@ -79,7 +79,16 @@ export default async function DashboardPage() {
                       <h3 className="font-display text-2xl font-semibold leading-tight text-ink">
                         {trip.name}
                       </h3>
-                      <DeleteTripButton tripId={trip.id} tripName={trip.name} className="-mr-1.5" />
+                      <span className="-mr-1.5 flex shrink-0 items-center gap-0.5">
+                        <Link
+                          href={`/trips/${trip.id}/edit`}
+                          aria-label={`Edit ${trip.name}`}
+                          className="p-1.5 text-muted/60 transition-colors hover:text-ink"
+                        >
+                          <Pencil className="size-4" aria-hidden />
+                        </Link>
+                        <DeleteTripButton tripId={trip.id} tripName={trip.name} />
+                      </span>
                     </div>
                     <p className="mt-1 font-mono text-xs text-muted">
                       {formatDateRange(trip.dateStart, trip.dateEnd)}
@@ -128,6 +137,13 @@ export default async function DashboardPage() {
                   <span className="font-mono text-[11px] text-muted">
                     {formatDateRange(trip.dateStart, trip.dateEnd)}
                   </span>
+                  <Link
+                    href={`/trips/${trip.id}/edit`}
+                    aria-label={`Edit ${trip.name}`}
+                    className="p-1 text-muted/60 transition-colors hover:text-ink"
+                  >
+                    <Pencil className="size-4" aria-hidden />
+                  </Link>
                   <DeleteTripButton tripId={trip.id} tripName={trip.name} />
                 </span>
               </div>

@@ -18,6 +18,7 @@ import { TripDocument } from '@/models/Document';
 import { ChatThread } from '@/models/ChatThread';
 import { Expense } from '@/models/Expense';
 import { ChecklistItem } from '@/models/ChecklistItem';
+import { Roadtrip } from '@/models/Roadtrip';
 import { ACTIVE_TRIP_COOKIE } from '@/lib/trips/queries';
 
 const createTripSchema = z
@@ -113,6 +114,49 @@ export async function createTrip(
   redirect('/explore');
 }
 
+/** Edits an existing trip's core details. Scoped to the session user. */
+export async function updateTrip(
+  tripId: string,
+  _prev: CreateTripState,
+  formData: FormData,
+): Promise<CreateTripState> {
+  const { userId } = await requireSession();
+  if (!isValidObjectId(tripId)) return { error: 'Invalid trip' };
+
+  const parsed = createTripSchema.safeParse({
+    name: formData.get('name'),
+    destination: formData.get('destination'),
+    dateStart: formData.get('dateStart'),
+    dateEnd: formData.get('dateEnd'),
+    baseLabel: formData.get('baseLabel'),
+    baseLat: formData.get('baseLat'),
+    baseLng: formData.get('baseLng'),
+  });
+  if (!parsed.success) return { error: parsed.error.issues[0]?.message ?? 'Invalid trip details' };
+
+  await connectToDatabase();
+  const res = await Trip.updateOne(
+    { _id: tripId, userId },
+    {
+      $set: {
+        name: parsed.data.name,
+        destination: parsed.data.destination,
+        dateStart: parsed.data.dateStart,
+        dateEnd: parsed.data.dateEnd,
+        baseLocation: {
+          lat: parsed.data.baseLat,
+          lng: parsed.data.baseLng,
+          label: parsed.data.baseLabel,
+        },
+      },
+    },
+  );
+  if (res.matchedCount === 0) return { error: 'Trip not found' };
+
+  revalidatePath('/', 'layout');
+  redirect('/dashboard');
+}
+
 /** Switches the active trip after verifying the user owns it. */
 export async function setActiveTrip(tripId: string): Promise<void> {
   const { userId } = await requireSession();
@@ -144,6 +188,7 @@ export async function deleteTrip(tripId: string): Promise<void> {
     ChatThread.deleteMany({ userId, tripId }),
     Expense.deleteMany({ userId, tripId }),
     ChecklistItem.deleteMany({ userId, tripId }),
+    Roadtrip.deleteMany({ userId, tripId }),
   ]);
   await Trip.deleteOne({ _id: tripId, userId });
 

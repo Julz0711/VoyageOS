@@ -3,7 +3,10 @@ import { cva, type VariantProps } from 'class-variance-authority';
 import { cn } from '@/lib/utils';
 
 const buttonVariants = cva(
-  'inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/40 focus-visible:ring-offset-2 focus-visible:ring-offset-canvas disabled:pointer-events-none disabled:opacity-50',
+  // Elevate on hover (scale + lift + soft shadow), press down on click. The `btn-elevate`
+  // class keeps the transition smooth even under reduced-motion (see globals.css) since this is
+  // an intentional, brief affordance rather than ambient motion.
+  'btn-elevate inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium origin-center transition-all duration-200 ease-out hover:scale-[1.03] hover:shadow-card active:scale-[0.98] active:shadow-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/40 focus-visible:ring-offset-2 focus-visible:ring-offset-canvas disabled:pointer-events-none disabled:opacity-50',
   {
     variants: {
       variant: {

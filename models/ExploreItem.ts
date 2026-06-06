@@ -39,6 +39,8 @@ export interface IExploreItem {
   externalLinks: IExternalLink[];
   source: ItemSource;
   images: string[];
+  /** For road-trip items: ordered Explore item ids that make up the route. */
+  routeStopIds?: Types.ObjectId[];
 }
 
 const LocationSchema = new Schema<IItemLocation>(
@@ -86,6 +88,7 @@ const ExploreItemSchema = new Schema<IExploreItem>(
     externalLinks: { type: [ExternalLinkSchema], default: [] },
     source: { type: String, enum: ['manual', 'ai', 'import'], default: 'manual' },
     images: { type: [String], default: [] },
+    routeStopIds: { type: [Schema.Types.ObjectId], ref: 'ExploreItem', default: undefined },
   },
   baseSchemaOptions,
 );

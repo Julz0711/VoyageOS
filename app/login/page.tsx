@@ -1,9 +1,9 @@
 import { redirect } from 'next/navigation';
-import { Compass } from 'lucide-react';
 import { getOptionalUserId } from '@/lib/auth/dal';
 import { signInDev, signInGoogle, signInDiscord } from '@/lib/auth/actions';
 import { strings } from '@/lib/strings';
 import { Button } from '@/components/ui/button';
+import { LogoMark } from '@/components/brand/Logo';
 import { AtlasTexture } from '@/components/app-shell/AtlasTexture';
 
 export default async function LoginPage() {
@@ -21,9 +21,7 @@ export default async function LoginPage() {
 
       <div className="w-full max-w-sm rounded-lg border border-border bg-surface p-8 shadow-lift">
         <div className="mb-8 text-center">
-          <span className="mx-auto mb-4 flex size-12 items-center justify-center rounded-md bg-primary text-primary-foreground">
-            <Compass className="size-6" aria-hidden />
-          </span>
+          <LogoMark className="mx-auto mb-4 size-12" />
           <h1 className="font-display text-3xl font-semibold text-ink">
             Voyage<span className="text-muted">OS</span>
           </h1>

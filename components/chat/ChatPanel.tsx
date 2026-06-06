@@ -12,12 +12,18 @@ import {
   type ToolUIPart,
   type DynamicToolUIPart,
 } from 'ai';
-import { Sparkles, Send, Check, X, Settings2, Loader2, Eraser, Search, MapPin, CloudSun } from 'lucide-react';
+import { Sparkles, Send, Check, X, Settings2, Loader2, Eraser, Search, MapPin, CloudSun, Square } from 'lucide-react';
 import type { AiInfo } from '@/lib/ai/userSettings';
 import { writeToolNames } from '@/lib/ai/toolNames';
 import { clearChat } from '@/lib/chat/actions';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
+
+/** Per-message token usage (attached as message metadata by the chat route). */
+function tokensOf(m: UIMessage): number | undefined {
+  const t = (m.metadata as { totalTokens?: number } | null | undefined)?.totalTokens;
+  return typeof t === 'number' ? t : undefined;
+}
 
 const suggestions = [
   'Find 4 wild-swim spots near the cabin',
@@ -36,7 +42,7 @@ export function ChatPanel({
   const [input, setInput] = useState('');
   const scrollRef = useRef<HTMLDivElement>(null);
 
-  const { messages, sendMessage, status, addToolApprovalResponse, setMessages, error } = useChat({
+  const { messages, sendMessage, status, stop, addToolApprovalResponse, setMessages, error } = useChat({
     messages: initialMessages,
     transport: new DefaultChatTransport({ api: '/api/chat' }),
     sendAutomaticallyWhen: lastAssistantMessageIsCompleteWithApprovalResponses,
@@ -47,6 +53,8 @@ export function ChatPanel({
   // The SDK can momentarily emit two messages with the same id during multi-step/approval.
   // Collapse by id (last wins) so React keys stay unique and bubbles aren't duplicated.
   const renderedMessages = Array.from(new Map(messages.map((m) => [m.id, m])).values());
+
+  const sessionTokens = renderedMessages.reduce((sum, m) => sum + (tokensOf(m) ?? 0), 0);
 
   function clearAll() {
     setMessages([]);
@@ -72,6 +80,14 @@ export function ChatPanel({
           <span className="text-sm font-medium text-ink">Travel assistant</span>
         </span>
         <div className="flex items-center gap-3">
+          {sessionTokens > 0 && (
+            <span
+              className="font-mono text-[11px] text-muted"
+              title="Total tokens used this session"
+            >
+              {sessionTokens.toLocaleString()} tokens
+            </span>
+          )}
           {messages.length > 0 && (
             <button
               type="button"
@@ -148,9 +164,15 @@ export function ChatPanel({
           placeholder="Ask about your trip…"
           className="h-10 flex-1 rounded-md border border-border bg-canvas/40 px-3 text-sm text-ink placeholder:text-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/40"
         />
-        <Button type="submit" size="icon" disabled={busy || !input.trim()} aria-label="Send">
-          <Send className="size-4" aria-hidden />
-        </Button>
+        {busy ? (
+          <Button type="button" size="icon" variant="secondary" onClick={() => stop()} aria-label="Stop">
+            <Square className="size-3.5 fill-current" aria-hidden />
+          </Button>
+        ) : (
+          <Button type="submit" size="icon" disabled={!input.trim()} aria-label="Send">
+            <Send className="size-4" aria-hidden />
+          </Button>
+        )}
       </form>
     </div>
   );
@@ -187,6 +209,11 @@ function MessageView({
         }
         return null;
       })}
+      {!isUser && tokensOf(message) != null && (
+        <span className="font-mono text-[10px] text-muted/60">
+          {tokensOf(message)!.toLocaleString()} tokens
+        </span>
+      )}
     </div>
   );
 }

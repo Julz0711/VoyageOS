@@ -1,23 +1,19 @@
 import 'server-only';
-import { isToolOrDynamicToolUIPart, type UIMessage } from 'ai';
+import type { UIMessage } from 'ai';
 import { isValidObjectId } from 'mongoose';
 import { connectToDatabase } from '@/lib/db/connect';
 import { ChatThread } from '@/models/ChatThread';
 
 /**
- * Reloaded history must convert to a valid prompt. We keep only:
- *  - non-empty text parts, and
- *  - tool parts that actually completed (`output-available`).
- * Everything else (pending/denied/errored tool calls left over from an interrupted approval,
- * reasoning/step markers, etc.) is dropped — otherwise an unpaired tool call makes streamText
- * reject the prompt ("…do not match the ModelMessage[] schema"). Empty messages are removed.
+ * Reloaded history must convert to a valid prompt. Past tool calls (even completed ones) can
+ * leave the persisted thread in a shape streamText rejects on reload ("…do not match the
+ * ModelMessage[] schema") — e.g. an unpaired tool call from an interrupted approval. We don't
+ * need tool I/O from prior turns: the model re-derives current state via `getTripContext`. So on
+ * load we keep ONLY non-empty text and drop every tool/other part — a text-only history always
+ * converts cleanly. (Live in-session approvals are unaffected; this only touches loaded history.)
  */
 function cleanMessage(m: UIMessage): UIMessage {
-  const parts = (m.parts ?? []).filter((p) => {
-    if (p.type === 'text') return p.text.trim().length > 0;
-    if (isToolOrDynamicToolUIPart(p)) return p.state === 'output-available';
-    return false;
-  });
+  const parts = (m.parts ?? []).filter((p) => p.type === 'text' && p.text.trim().length > 0);
   return { ...m, parts };
 }
 

@@ -70,6 +70,15 @@ export async function clearByokKey(): Promise<void> {
   revalidatePath('/chat');
 }
 
+/** Toggle AI usage / rate-limit warnings shown in chat. */
+export async function setAiWarnings(enabled: boolean): Promise<void> {
+  const { userId } = await requireSession();
+  await connectToDatabase();
+  await User.updateOne({ _id: userId }, { $set: { aiWarnings: enabled } });
+  revalidatePath('/settings');
+  revalidatePath('/chat');
+}
+
 /** Change the model for the user's saved BYOK provider (validated against that provider). */
 export async function setAiModel(modelId: string): Promise<void> {
   const { userId } = await requireSession();
