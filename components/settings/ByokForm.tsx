@@ -1,0 +1,167 @@
+'use client';
+
+import { useActionState, useState, useTransition } from 'react';
+import { ExternalLink } from 'lucide-react';
+import { saveByokKey, clearByokKey, setAiModel, type SaveKeyState } from '@/lib/ai/settings';
+import { providers, type ModelOption, type ProviderId } from '@/config/ai';
+import type { AiInfo } from '@/lib/ai/userSettings';
+import { Button } from '@/components/ui/button';
+import { Input, Label } from '@/components/ui/input';
+
+const byokProviders = Object.values(providers).filter((p) => p.byok);
+const selectClass =
+  'h-10 w-full rounded-md border border-border bg-surface px-3 text-sm text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/40';
+
+/** Live model list for a provider (dynamic providers get the server-fetched list). */
+function modelsFor(providerId: ProviderId, openRouterModels: ModelOption[]): ModelOption[] {
+  if (providerId === 'openrouter' && openRouterModels.length > 0) return openRouterModels;
+  return providers[providerId].models;
+}
+
+export function ByokForm({
+  info,
+  openRouterModels,
+}: {
+  info: AiInfo;
+  openRouterModels: ModelOption[];
+}) {
+  const [, startTransition] = useTransition();
+
+  const savedProvider = info.byokProviderId ? providers[info.byokProviderId as ProviderId] : undefined;
+  const savedModels = savedProvider ? modelsFor(savedProvider.id, openRouterModels) : [];
+
+  return (
+    <div className="space-y-6">
+      {/* Saved key */}
+      {info.hasKey && savedProvider && (
+        <div className="rounded-lg border border-border bg-surface p-5">
+          <p className="eyebrow mb-3 text-muted">Your assistant</p>
+          <div className="flex items-center justify-between gap-3 rounded-md border border-border bg-canvas/40 p-3">
+            <div className="min-w-0">
+              <p className="text-sm font-medium text-ink">{savedProvider.label}</p>
+              <p className="font-mono text-xs text-muted">{info.keyHint}</p>
+            </div>
+            <form action={clearByokKey}>
+              <Button type="submit" variant="secondary" size="sm">
+                Remove key
+              </Button>
+            </form>
+          </div>
+
+          <div className="mt-4 max-w-xs">
+            <Label htmlFor="active-model">Model</Label>
+            <select
+              id="active-model"
+              value={info.byokModelId ?? savedModels[0]?.id}
+              onChange={(e) => startTransition(() => void setAiModel(e.target.value))}
+              className={selectClass}
+            >
+              {savedModels.map((m) => (
+                <option key={m.id} value={m.id}>
+                  {m.label}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {!info.available && (
+            <p className="mt-3 text-sm text-danger">
+              This key couldn’t be used. Replace it below.
+            </p>
+          )}
+        </div>
+      )}
+
+      {/* Add / replace key */}
+      <div className="rounded-lg border border-border bg-surface p-5">
+        <p className="eyebrow mb-3 text-muted">{info.hasKey ? 'Replace your API key' : 'Add an API key'}</p>
+        {!info.hasKey && (
+          <p className="mb-4 text-sm text-muted">
+            VoyageOS uses your own AI key. Several providers below have a{' '}
+            <span className="font-medium text-ink">free tier</span> — pick one, grab a key, and paste
+            it here.
+          </p>
+        )}
+        <KeyForm replacing={info.hasKey} openRouterModels={openRouterModels} />
+      </div>
+    </div>
+  );
+}
+
+function KeyForm({
+  replacing,
+  openRouterModels,
+}: {
+  replacing: boolean;
+  openRouterModels: ModelOption[];
+}) {
+  const [state, action, pending] = useActionState<SaveKeyState, FormData>(saveByokKey, undefined);
+  const [provider, setProvider] = useState<ProviderId>(byokProviders[0].id);
+  const cfg = providers[provider];
+  const models = modelsFor(provider, openRouterModels);
+
+  return (
+    <form action={action} className="space-y-4">
+      <div className="grid gap-4 sm:grid-cols-2">
+        <div>
+          <Label htmlFor="provider">Provider</Label>
+          <select
+            id="provider"
+            name="provider"
+            value={provider}
+            onChange={(e) => setProvider(e.target.value as ProviderId)}
+            className={selectClass}
+          >
+            {byokProviders.map((p) => (
+              <option key={p.id} value={p.id}>
+                {p.label}
+                {p.freeTier ? ' — free tier' : ''}
+              </option>
+            ))}
+          </select>
+        </div>
+        <div>
+          <Label htmlFor="model">Model</Label>
+          <select id="model" name="model" defaultValue={models[0]?.id} key={provider} className={selectClass}>
+            {models.map((m) => (
+              <option key={m.id} value={m.id}>
+                {m.label}
+              </option>
+            ))}
+          </select>
+        </div>
+      </div>
+
+      <a
+        href={cfg.getKeyUrl}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="inline-flex items-center gap-1.5 text-sm font-medium text-ink underline"
+      >
+        <ExternalLink className="size-3.5" aria-hidden />
+        Get a {cfg.label} key{cfg.freeTier ? ' (free)' : ''}
+      </a>
+
+      <div>
+        <Label htmlFor="key">API key</Label>
+        <Input id="key" name="key" type="password" placeholder="sk-…" autoComplete="off" required />
+        <p className="mt-1 text-xs text-muted">Encrypted at rest, used only server-side, never shown again.</p>
+      </div>
+
+      {cfg.caveat && (
+        <p className="rounded-md border border-border bg-canvas/60 px-3 py-2 text-xs leading-relaxed text-muted">
+          {cfg.caveat}
+        </p>
+      )}
+
+      {state?.error && <p className="text-sm text-danger">{state.error}</p>}
+      {state?.ok && <p className="text-sm text-success">Saved and activated.</p>}
+
+      <div className="flex justify-end">
+        <Button type="submit" disabled={pending}>
+          {pending ? 'Saving…' : replacing ? 'Replace key' : 'Save key'}
+        </Button>
+      </div>
+    </form>
+  );
+}

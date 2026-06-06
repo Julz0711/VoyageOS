@@ -1,0 +1,278 @@
+'use client';
+
+import { useMemo, useState } from 'react';
+import { format } from 'date-fns';
+import { Droplets, Wind, Sunrise, Sunset, Sun, X, MapPin } from 'lucide-react';
+import type { ForecastDay, ForecastSource, ClimateSummary } from '@/lib/weather/openMeteo';
+import { tripDays } from '@/lib/dates';
+import { wmoInfo } from '@/lib/weather/wmo';
+import { cn } from '@/lib/utils';
+
+function ymd(d: Date): string {
+  return format(d, 'yyyy-MM-dd');
+}
+
+function hhmm(iso?: string): string | null {
+  if (!iso) return null;
+  const d = new Date(iso);
+  return Number.isNaN(d.getTime()) ? null : format(d, 'HH:mm');
+}
+
+/** Human-readable "where this forecast came from" from Open-Meteo's resolved grid point. */
+function sourceLabel(source: ForecastSource | null): string {
+  if (!source) return 'data from Open-Meteo';
+  const lat = `${Math.abs(source.lat).toFixed(2)}°${source.lat >= 0 ? 'N' : 'S'}`;
+  const lng = `${Math.abs(source.lng).toFixed(2)}°${source.lng >= 0 ? 'E' : 'W'}`;
+  const parts = [`${lat}, ${lng}`];
+  if (source.elevation != null) parts.push(`${Math.round(source.elevation)} m`);
+  return `Open-Meteo · nearest grid point ${parts.join(' · ')}`;
+}
+
+export function WeatherPanel({
+  forecast,
+  climate,
+  tripStart,
+  tripEnd,
+  source,
+}: {
+  forecast: ForecastDay[];
+  climate: ClimateSummary | null;
+  tripStart: string;
+  tripEnd: string;
+  source: ForecastSource | null;
+}) {
+  const byDate = useMemo(() => new Map(forecast.map((f) => [f.date, f])), [forecast]);
+  const days = useMemo(() => tripDays(tripStart, tripEnd), [tripStart, tripEnd]);
+  const [selected, setSelected] = useState<Date | null>(null);
+
+  const hasGaps = days.some((d) => !byDate.has(ymd(d)));
+  const selectedFc = selected ? byDate.get(ymd(selected)) : undefined;
+
+  return (
+    <section className="rounded-lg border border-border bg-surface p-6 shadow-card">
+      <div className="mb-1 flex items-center justify-between gap-3">
+        <h2 className="eyebrow text-muted">Forecast · {days.length} days</h2>
+        <span className="font-mono text-[11px] text-muted">tap a day for detail</span>
+      </div>
+      <p className="mb-4 flex items-center gap-1.5 font-mono text-[11px] text-muted">
+        <MapPin className="size-3" aria-hidden />
+        {sourceLabel(source)}
+      </p>
+
+      <div className="no-scrollbar -mx-1 flex gap-2 overflow-x-auto px-1 pb-1">
+        {days.map((day) => {
+          const fc = byDate.get(ymd(day));
+          return (
+            <DayCard
+              key={ymd(day)}
+              day={day}
+              fc={fc}
+              climate={climate}
+              onClick={() => setSelected(day)}
+            />
+          );
+        })}
+      </div>
+
+      {hasGaps && (
+        <p className="mt-3 text-xs leading-relaxed text-muted">
+          Days beyond the 16-day forecast show{' '}
+          <strong className="font-medium text-ink">seasonal averages</strong>
+          {climate ? ` (typical for these dates, from ${climate.yearsUsed.join(', ')})` : ''} — not a
+          precise forecast.
+        </p>
+      )}
+
+      {selected && (
+        <DayModal day={selected} fc={selectedFc} climate={climate} onClose={() => setSelected(null)} />
+      )}
+    </section>
+  );
+}
+
+function DayCard({
+  day,
+  fc,
+  climate,
+  onClick,
+}: {
+  day: Date;
+  fc?: ForecastDay;
+  climate: ClimateSummary | null;
+  onClick: () => void;
+}) {
+  const Icon = fc ? wmoInfo(fc.code).icon : Sun;
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={cn(
+        'flex min-w-[5.25rem] shrink-0 flex-col items-center gap-1 rounded-md border border-border px-3 py-3 text-center transition-colors hover:border-ink/25',
+        fc ? 'bg-canvas/40' : 'bg-canvas/20',
+      )}
+    >
+      <span className="eyebrow text-muted">{format(day, 'EEE')}</span>
+      <span className="font-mono text-[11px] text-muted/70">{format(day, 'd MMM')}</span>
+      <Icon className={cn('my-1 size-6', fc ? 'text-primary' : 'text-muted')} aria-hidden />
+      {fc ? (
+        <>
+          <span className="font-mono text-sm">
+            <span className="text-ink">{fc.tMax}°</span>{' '}
+            <span className="text-muted">{fc.tMin}°</span>
+          </span>
+          {fc.precipProbMax != null && (
+            <span className="flex items-center gap-0.5 font-mono text-[11px] text-accent-2">
+              <Droplets className="size-3" aria-hidden />
+              {fc.precipProbMax}%
+            </span>
+          )}
+        </>
+      ) : (
+        <>
+          <span className="font-mono text-sm text-muted">
+            {climate ? `${climate.avgTMax}° ${climate.avgTMin}°` : '—'}
+          </span>
+          <span className="font-mono text-[10px] uppercase tracking-wide text-muted/70">avg</span>
+        </>
+      )}
+    </button>
+  );
+}
+
+function DayModal({
+  day,
+  fc,
+  climate,
+  onClose,
+}: {
+  day: Date;
+  fc?: ForecastDay;
+  climate: ClimateSummary | null;
+  onClose: () => void;
+}) {
+  const info = fc ? wmoInfo(fc.code) : null;
+  const Icon = info?.icon ?? Sun;
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-end justify-center bg-ink/30 p-4 backdrop-blur-sm sm:items-center"
+      onClick={onClose}
+      role="presentation"
+    >
+      <div
+        className="w-full max-w-md overflow-hidden rounded-lg border border-border bg-surface shadow-lift"
+        onClick={(e) => e.stopPropagation()}
+        role="dialog"
+        aria-modal="true"
+      >
+        <div className="flex items-start justify-between gap-3 border-b border-border p-5">
+          <div className="flex items-center gap-3">
+            <Icon className="size-9 text-primary" aria-hidden />
+            <div>
+              <h2 className="font-display text-lg font-semibold text-ink">
+                {format(day, 'EEEE d MMM')}
+              </h2>
+              <p className="text-sm text-muted">{fc ? info?.label : 'Seasonal average'}</p>
+            </div>
+          </div>
+          <button type="button" onClick={onClose} aria-label="Close" className="text-muted hover:text-ink">
+            <X className="size-5" aria-hidden />
+          </button>
+        </div>
+
+        <div className="space-y-4 p-5">
+          {fc ? (
+            <>
+              <div className="flex items-baseline gap-3">
+                <span className="font-display text-3xl font-semibold text-ink">{fc.tMax}°</span>
+                <span className="font-mono text-lg text-muted">{fc.tMin}°</span>
+                {fc.precipProbMax != null && (
+                  <span className="ml-auto flex items-center gap-1 font-mono text-sm text-accent-2">
+                    <Droplets className="size-4" aria-hidden />
+                    {fc.precipProbMax}%
+                  </span>
+                )}
+              </div>
+
+              <dl className="grid grid-cols-2 gap-3">
+                {fc.windMax != null && <Fact icon={Wind} label="Wind" value={`${fc.windMax} km/h`} />}
+                {fc.uvMax != null && <Fact icon={Sun} label="UV index" value={`${fc.uvMax}`} />}
+                {hhmm(fc.sunrise) && <Fact icon={Sunrise} label="Sunrise" value={hhmm(fc.sunrise)!} />}
+                {hhmm(fc.sunset) && <Fact icon={Sunset} label="Sunset" value={hhmm(fc.sunset)!} />}
+                {fc.precipHours != null && (
+                  <Fact icon={Droplets} label="Precip hours" value={`${fc.precipHours}h`} />
+                )}
+              </dl>
+
+              {fc.hours && fc.hours.length > 0 && (
+                <div>
+                  <p className="eyebrow mb-2 text-muted">Hourly</p>
+                  <div className="no-scrollbar flex gap-2 overflow-x-auto">
+                    {fc.hours
+                      .filter((_, i) => i % 2 === 0)
+                      .map((h) => {
+                        const HIcon = wmoInfo(h.code).icon;
+                        return (
+                          <div
+                            key={h.time}
+                            className="flex min-w-12 shrink-0 flex-col items-center gap-1 rounded-md border border-border bg-canvas/40 px-2 py-2 text-center"
+                          >
+                            <span className="font-mono text-[10px] text-muted">{h.time.slice(11, 16)}</span>
+                            <HIcon className="size-4 text-primary" aria-hidden />
+                            <span className="font-mono text-xs text-ink">{h.temp}°</span>
+                            {h.precipProb != null && (
+                              <span className="font-mono text-[10px] text-accent-2">{h.precipProb}%</span>
+                            )}
+                          </div>
+                        );
+                      })}
+                  </div>
+                </div>
+              )}
+            </>
+          ) : (
+            <div className="space-y-3">
+              {climate ? (
+                <>
+                  <div className="grid grid-cols-2 gap-3">
+                    <Fact icon={Sun} label="Avg high" value={`${climate.avgTMax}°`} />
+                    <Fact icon={Sun} label="Avg low" value={`${climate.avgTMin}°`} />
+                    <Fact icon={Droplets} label="Avg rain/day" value={`${climate.avgPrecip} mm`} />
+                    <Fact icon={Droplets} label="Rainy days" value={`${climate.rainyDayPct}%`} />
+                  </div>
+                  <p className="rounded-md border border-dashed border-border bg-canvas/40 px-3 py-2 text-xs leading-relaxed text-muted">
+                    <strong className="font-medium text-ink">Seasonal average, not a forecast.</strong>{' '}
+                    Typical conditions for these dates, from {climate.yearsUsed.join(', ')}.
+                  </p>
+                </>
+              ) : (
+                <p className="text-sm text-muted">
+                  This day is beyond the 16-day forecast and no seasonal data is available.
+                </p>
+              )}
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function Fact({
+  icon: Icon,
+  label,
+  value,
+}: {
+  icon: typeof Sun;
+  label: string;
+  value: string;
+}) {
+  return (
+    <div className="rounded-md border border-border bg-canvas/40 px-3 py-2.5">
+      <span className="flex items-center gap-1.5 text-[11px] uppercase tracking-wide text-muted">
+        <Icon className="size-3" aria-hidden /> {label}
+      </span>
+      <span className="mt-0.5 block font-mono text-base text-ink">{value}</span>
+    </div>
+  );
+}

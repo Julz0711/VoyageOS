@@ -1,0 +1,117 @@
+@import "tailwindcss";
+
+/*
+ * Map Tailwind's token namespaces onto the runtime `--vos-*` CSS variables that are
+ * injected on :root from `config/theme.ts` (see lib/theme/css.ts + app/layout.tsx).
+ * Editing config/theme.ts restyles the whole app with no rebuild of these mappings.
+ *
+ * Utilities (examples): bg-canvas, bg-surface, text-ink, text-muted, border-border,
+ * bg-primary, text-primary-foreground, bg-accent, bg-accent-2, rounded-md, rounded-pill,
+ * font-serif, font-mono, shadow-card, shadow-lift, bg-map-swim ...
+ */
+@theme inline {
+  --color-canvas: var(--vos-color-bg);
+  --color-surface: var(--vos-color-surface);
+  --color-header: var(--vos-color-header);
+  --color-primary: var(--vos-color-primary);
+  --color-primary-foreground: var(--vos-color-primary-fg);
+  --color-accent: var(--vos-color-accent);
+  --color-accent-foreground: var(--vos-color-accent-fg);
+  --color-accent-2: var(--vos-color-accent2);
+  --color-ink: var(--vos-color-ink);
+  --color-muted: var(--vos-color-muted);
+  --color-border: var(--vos-color-border);
+  --color-success: var(--vos-color-success);
+  --color-danger: var(--vos-color-danger);
+
+  --color-map-swim: var(--vos-color-map-swim);
+  --color-map-hike: var(--vos-color-map-hike);
+  --color-map-culture: var(--vos-color-map-culture);
+  --color-map-food: var(--vos-color-map-food);
+
+  --radius-sm: var(--vos-radius-sm);
+  --radius-md: var(--vos-radius-md);
+  --radius-lg: var(--vos-radius-lg);
+  --radius-pill: var(--vos-radius-pill);
+
+  --font-display: var(--vos-font-display);
+  --font-sans: var(--vos-font-sans);
+  --font-mono: var(--vos-font-mono);
+
+  --shadow-card: var(--vos-shadow-card);
+  --shadow-lift: var(--vos-shadow-lift);
+}
+
+html {
+  height: 100%;
+}
+
+body {
+  min-height: 100%;
+  background-color: var(--color-canvas);
+  color: var(--color-ink);
+  font-family: var(--font-sans);
+  font-feature-settings: "ss01", "cv01";
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+/* Display headings */
+h1, h2, h3 {
+  font-family: var(--font-display);
+  letter-spacing: -0.02em;
+}
+
+::selection {
+  background: color-mix(in srgb, var(--color-accent) 28%, transparent);
+}
+
+/* Field-guide "eyebrow" label: mono, uppercase, tracked. */
+.eyebrow {
+  font-family: var(--font-mono);
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  font-size: 0.6875rem;
+}
+
+/* Hairline rule used between field-guide entries / sections. */
+.atlas-rule {
+  border: none;
+  border-top: 1px solid var(--color-border);
+}
+
+/* Hide scrollbars on horizontal filter rows (still scrollable). */
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
+/* Staggered reveal for card grids. */
+@keyframes vos-fade-up {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.animate-fade-up {
+  animation: vos-fade-up 0.5s cubic-bezier(0.2, 0.7, 0.2, 1) both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
+}
