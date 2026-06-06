@@ -10,6 +10,7 @@ import { connectToDatabase } from '@/lib/db/connect';
 import { requireSession } from '@/lib/auth/dal';
 import { requireActiveTrip } from '@/lib/trips/active';
 import { geocode } from '@/lib/geocode/nominatim';
+import { findImage } from '@/lib/images/openverse';
 import { Trip } from '@/models/Trip';
 import { ExploreItem } from '@/models/ExploreItem';
 import { CalendarEntry } from '@/models/CalendarEntry';
@@ -30,6 +31,7 @@ const createTripSchema = z
     baseLabel: z.string().trim().min(1, 'Base location label is required').max(160),
     baseLat: z.coerce.number().min(-90).max(90),
     baseLng: z.coerce.number().min(-180).max(180),
+    coverImage: z.union([z.string().trim().url('Enter a valid image URL'), z.literal('')]).optional(),
   })
   .refine((d) => d.dateEnd >= d.dateStart, {
     message: 'End date must be on or after the start date',
@@ -73,6 +75,13 @@ async function setActiveTripCookie(tripId: string): Promise<void> {
   });
 }
 
+/** Suggests a cover image for the trip from its destination (free Openverse CC photos). */
+export async function suggestTripCover(destination: string): Promise<{ url: string | null }> {
+  await requireSession();
+  const url = await findImage(destination?.trim() || '');
+  return { url };
+}
+
 export async function createTrip(
   _prev: CreateTripState,
   formData: FormData,
@@ -87,6 +96,7 @@ export async function createTrip(
     baseLabel: formData.get('baseLabel'),
     baseLat: formData.get('baseLat'),
     baseLng: formData.get('baseLng'),
+    coverImage: formData.get('coverImage') ?? '',
   });
 
   if (!parsed.success) {
@@ -105,6 +115,7 @@ export async function createTrip(
       lng: parsed.data.baseLng,
       label: parsed.data.baseLabel,
     },
+    coverImage: parsed.data.coverImage || undefined,
     categories: [],
     archived: false,
   });
@@ -131,9 +142,11 @@ export async function updateTrip(
     baseLabel: formData.get('baseLabel'),
     baseLat: formData.get('baseLat'),
     baseLng: formData.get('baseLng'),
+    coverImage: formData.get('coverImage') ?? '',
   });
   if (!parsed.success) return { error: parsed.error.issues[0]?.message ?? 'Invalid trip details' };
 
+  const cover = parsed.data.coverImage;
   await connectToDatabase();
   const res = await Trip.updateOne(
     { _id: tripId, userId },
@@ -148,7 +161,9 @@ export async function updateTrip(
           lng: parsed.data.baseLng,
           label: parsed.data.baseLabel,
         },
+        ...(cover ? { coverImage: cover } : {}),
       },
+      ...(cover ? {} : { $unset: { coverImage: '' } }),
     },
   );
   if (res.matchedCount === 0) return { error: 'Trip not found' };

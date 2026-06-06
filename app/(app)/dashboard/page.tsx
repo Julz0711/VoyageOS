@@ -71,6 +71,7 @@ export default async function DashboardPage() {
                     lat={trip.baseLocation.lat}
                     lng={trip.baseLocation.lng}
                     badge={countdown.label.toUpperCase()}
+                    coverImage={trip.coverImage}
                     className="h-32"
                   />
 

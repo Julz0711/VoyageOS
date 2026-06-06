@@ -1,11 +1,12 @@
 'use client';
 
 import { useActionState, useState, useTransition } from 'react';
-import { LocateFixed, Loader2, Check } from 'lucide-react';
+import { LocateFixed, Loader2, Check, ImagePlus } from 'lucide-react';
 import {
   createTrip,
   updateTrip,
   lookupBaseCoordinates,
+  suggestTripCover,
   type CreateTripState,
 } from '@/lib/trips/actions';
 import type { TripDTO } from '@/lib/dto';
@@ -25,6 +26,15 @@ export function TripForm({ trip }: { trip?: TripDTO }) {
   const [lng, setLng] = useState(trip ? String(trip.baseLocation.lng) : '');
   const [resolved, setResolved] = useState<string | null>(null);
   const [detectError, setDetectError] = useState<string | null>(null);
+  const [coverImage, setCoverImage] = useState(trip?.coverImage ?? '');
+  const [findingCover, startFindCover] = useTransition();
+
+  function suggestCover() {
+    startFindCover(async () => {
+      const res = await suggestTripCover(destination);
+      if (res.url) setCoverImage(res.url);
+    });
+  }
 
   function detect() {
     setResolved(null);
@@ -143,6 +153,44 @@ export function TripForm({ trip }: { trip?: TripDTO }) {
             Auto-detect from your destination, or fine-tune the coordinates by hand.
           </p>
         )}
+      </div>
+
+      <div>
+        <Label htmlFor="coverImage">Header image (optional)</Label>
+        <div className="flex gap-2">
+          <Input
+            id="coverImage"
+            name="coverImage"
+            value={coverImage}
+            onChange={(e) => setCoverImage(e.target.value)}
+            placeholder="https://… image URL"
+          />
+          <Button
+            type="button"
+            variant="secondary"
+            onClick={suggestCover}
+            disabled={findingCover || !destination.trim()}
+          >
+            {findingCover ? (
+              <Loader2 className="size-4 animate-spin" aria-hidden />
+            ) : (
+              <ImagePlus className="size-4" aria-hidden />
+            )}
+            Find
+          </Button>
+        </div>
+        {coverImage && (
+          <div
+            className="mt-2 h-28 w-full rounded-md border border-border bg-canvas bg-cover bg-center"
+            style={{ backgroundImage: `url("${coverImage.replace(/"/g, '')}")` }}
+            role="img"
+            aria-label="Header preview"
+          />
+        )}
+        <p className="mt-1 text-xs text-muted">
+          Shown as the trip’s header and on the shared itinerary. “Find” pulls a free photo from
+          your destination.
+        </p>
       </div>
 
       {state?.error && <p className="text-sm text-danger">{state.error}</p>}

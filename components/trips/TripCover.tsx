@@ -15,43 +15,52 @@ export function TripCover({
   lat,
   lng,
   badge,
+  coverImage,
   className = '',
 }: {
   destination: string;
   lat: number;
   lng: number;
   badge?: string;
+  coverImage?: string;
   className?: string;
 }) {
-  return (
-    <div
-      className={`relative overflow-hidden text-primary-foreground ${className}`}
-      style={{
+  const style: React.CSSProperties = coverImage
+    ? {
+        backgroundImage: `linear-gradient(180deg, color-mix(in srgb, var(--vos-color-primary) 15%, transparent), color-mix(in srgb, var(--vos-color-primary) 70%, transparent)), url("${coverImage.replace(/"/g, '')}")`,
+        backgroundSize: 'cover',
+        backgroundPosition: 'center',
+      }
+    : {
         background:
           'linear-gradient(135deg, var(--vos-color-primary) 0%, var(--vos-color-map-swim) 58%, var(--vos-color-accent) 130%)',
-      }}
-    >
-      {/* contour texture */}
-      <svg
-        aria-hidden
-        className="absolute -right-10 -top-16 h-64 w-64 text-primary-foreground"
-        viewBox="-160 -160 320 320"
-        style={{ opacity: 0.16 }}
-      >
-        {[34, 58, 82, 106, 130, 154].map((r, i) => (
-          <ellipse
-            key={r}
-            cx={0}
-            cy={0}
-            rx={r}
-            ry={r * 0.8}
-            fill="none"
-            stroke="currentColor"
-            strokeWidth={1.25}
-            transform={`rotate(${-16 + i * 2})`}
-          />
-        ))}
-      </svg>
+      };
+
+  return (
+    <div className={`relative overflow-hidden text-primary-foreground ${className}`} style={style}>
+      {/* contour texture (gradient cover only) */}
+      {!coverImage && (
+        <svg
+          aria-hidden
+          className="absolute -right-10 -top-16 h-64 w-64 text-primary-foreground"
+          viewBox="-160 -160 320 320"
+          style={{ opacity: 0.16 }}
+        >
+          {[34, 58, 82, 106, 130, 154].map((r, i) => (
+            <ellipse
+              key={r}
+              cx={0}
+              cy={0}
+              rx={r}
+              ry={r * 0.8}
+              fill="none"
+              stroke="currentColor"
+              strokeWidth={1.25}
+              transform={`rotate(${-16 + i * 2})`}
+            />
+          ))}
+        </svg>
+      )}
 
       <div className="relative flex h-full flex-col justify-between p-4">
         <div className="flex items-start justify-between gap-2">
