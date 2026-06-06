@@ -1,9 +1,9 @@
 'use client';
 
 import { useMemo, useOptimistic, useState, useTransition } from 'react';
-import { Plus, Trash2, ArrowUp, ArrowDown, X, Route, Navigation, Search } from 'lucide-react';
+import { Plus, Trash2, ArrowUp, ArrowDown, X, Route, Navigation, Search, Pencil } from 'lucide-react';
 import type { RoadtripDTO } from '@/lib/dto';
-import { createRoadtrip, deleteRoadtrip } from '@/lib/roadtrips/actions';
+import { createRoadtrip, updateRoadtrip, deleteRoadtrip } from '@/lib/roadtrips/actions';
 import { getCategory } from '@/config/categories';
 import { Button } from '@/components/ui/button';
 import { Input, Label } from '@/components/ui/input';
@@ -26,7 +26,8 @@ export function RoadtripsView({
     list.filter((r) => r.id !== id),
   );
   const [, startTransition] = useTransition();
-  const [building, setBuilding] = useState(false);
+  // null = closed; { } = new; { roadtrip } = editing that one.
+  const [editor, setEditor] = useState<{ roadtrip?: RoadtripDTO } | null>(null);
 
   function onDelete(id: string) {
     startTransition(() => {
@@ -45,13 +46,21 @@ export function RoadtripsView({
             String your places into an ordered route. Each roadtrip also shows up in Explore.
           </p>
         </div>
-        <Button variant={building ? 'secondary' : 'primary'} onClick={() => setBuilding((v) => !v)}>
+        <Button
+          variant={editor ? 'secondary' : 'primary'}
+          onClick={() => setEditor((e) => (e ? null : {}))}
+        >
           <Plus className="size-4" aria-hidden /> New roadtrip
         </Button>
       </div>
 
-      {building && (
-        <Builder candidates={candidates} onDone={() => setBuilding(false)} />
+      {editor && (
+        <Builder
+          key={editor.roadtrip?.id ?? 'new'}
+          candidates={candidates}
+          editing={editor.roadtrip}
+          onDone={() => setEditor(null)}
+        />
       )}
 
       {optimistic.length === 0 ? (
@@ -79,6 +88,14 @@ export function RoadtripsView({
                         </Button>
                       </a>
                     )}
+                    <button
+                      type="button"
+                      onClick={() => setEditor({ roadtrip: rt })}
+                      aria-label="Edit roadtrip"
+                      className="p-1.5 text-muted/60 transition-colors hover:text-ink"
+                    >
+                      <Pencil className="size-4" aria-hidden />
+                    </button>
                     <DeleteButton onConfirm={() => onDelete(rt.id)} />
                   </div>
                 </div>
@@ -108,11 +125,22 @@ export function RoadtripsView({
   );
 }
 
-function Builder({ candidates, onDone }: { candidates: Candidate[]; onDone: () => void }) {
+function Builder({
+  candidates,
+  editing,
+  onDone,
+}: {
+  candidates: Candidate[];
+  editing?: RoadtripDTO;
+  onDone: () => void;
+}) {
   const [, startTransition] = useTransition();
-  const [name, setName] = useState('');
-  const [notes, setNotes] = useState('');
-  const [selected, setSelected] = useState<string[]>([]);
+  const candidateIds = useMemo(() => new Set(candidates.map((c) => c.id)), [candidates]);
+  const [name, setName] = useState(editing?.name ?? '');
+  const [notes, setNotes] = useState(editing?.notes ?? '');
+  const [selected, setSelected] = useState<string[]>(
+    editing ? editing.stops.map((s) => s.id).filter((id) => candidateIds.has(id)) : [],
+  );
   const [query, setQuery] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
@@ -147,8 +175,9 @@ function Builder({ candidates, onDone }: { candidates: Candidate[]; onDone: () =
     if (!name.trim()) return setError('Name your roadtrip');
     if (selected.length < 2) return setError('Pick at least two stops');
     setSaving(true);
+    const payload = { name: name.trim(), notes: notes.trim() || undefined, stopIds: selected };
     startTransition(async () => {
-      const res = await createRoadtrip({ name: name.trim(), notes: notes.trim() || undefined, stopIds: selected });
+      const res = editing ? await updateRoadtrip(editing.id, payload) : await createRoadtrip(payload);
       setSaving(false);
       if (res.ok) onDone();
       else setError(res.error);
@@ -238,7 +267,9 @@ function Builder({ candidates, onDone }: { candidates: Candidate[]; onDone: () =
       {error && <p className="text-sm text-danger">{error}</p>}
       <div className="flex justify-end gap-2">
         <Button variant="secondary" onClick={onDone}>Cancel</Button>
-        <Button onClick={save} disabled={saving}>{saving ? 'Saving…' : 'Save roadtrip'}</Button>
+        <Button onClick={save} disabled={saving}>
+          {saving ? 'Saving…' : editing ? 'Save changes' : 'Save roadtrip'}
+        </Button>
       </div>
     </div>
   );

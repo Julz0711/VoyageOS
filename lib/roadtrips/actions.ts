@@ -80,6 +80,67 @@ export async function createRoadtrip(input: {
   return { ok: true, id: roadtrip._id.toString() };
 }
 
+export async function updateRoadtrip(
+  roadtripId: string,
+  input: { name: string; notes?: string; stopIds: string[] },
+): Promise<CreateRoadtripResult> {
+  const { userId, trip } = await requireActiveTrip();
+  if (!trip) return { ok: false, error: 'No active trip' };
+  if (!isValidObjectId(roadtripId)) return { ok: false, error: 'Invalid roadtrip' };
+
+  const parsed = createSchema.safeParse(input);
+  if (!parsed.success) return { ok: false, error: parsed.error.issues[0]?.message ?? 'Invalid roadtrip' };
+
+  const ids = parsed.data.stopIds.filter((id) => isValidObjectId(id));
+  if (ids.length < 2) return { ok: false, error: 'Pick at least two stops' };
+
+  await connectToDatabase();
+  const rt = await Roadtrip.findOne({ _id: roadtripId, userId, tripId: trip.id }).select('exploreItemId').lean();
+  if (!rt) return { ok: false, error: 'Roadtrip not found' };
+
+  const owned = await ExploreItem.find({ _id: { $in: ids }, userId, tripId: trip.id })
+    .select('title location')
+    .lean();
+  const ownedById = new Map(owned.map((i) => [i._id.toString(), i]));
+  const orderedStops = ids.map((id) => ownedById.get(id)).filter((i): i is NonNullable<typeof i> => Boolean(i));
+  if (orderedStops.length < 2) return { ok: false, error: 'Some stops were not found' };
+
+  const firstWithLoc = orderedStops.find((s) => s.location?.lat != null && s.location?.lng != null);
+  const stopObjectIds = orderedStops.map((s) => s._id);
+
+  await Roadtrip.updateOne(
+    { _id: roadtripId, userId },
+    { $set: { name: parsed.data.name, notes: parsed.data.notes, stopIds: stopObjectIds } },
+  );
+
+  // Keep the mirror Explore card in sync.
+  if (rt.exploreItemId) {
+    await ExploreItem.updateOne(
+      { _id: rt.exploreItemId, userId },
+      {
+        $set: {
+          title: parsed.data.name,
+          subtitle: `Roadtrip · ${orderedStops.length} stops`,
+          description: parsed.data.notes,
+          location: firstWithLoc?.location
+            ? {
+                lat: firstWithLoc.location.lat,
+                lng: firstWithLoc.location.lng,
+                areaLabel: firstWithLoc.location.areaLabel,
+              }
+            : undefined,
+          routeStopIds: stopObjectIds,
+        },
+      },
+    );
+  }
+
+  revalidatePath('/roadtrips');
+  revalidatePath('/explore');
+  revalidatePath('/map');
+  return { ok: true, id: roadtripId };
+}
+
 export async function deleteRoadtrip(roadtripId: string): Promise<void> {
   const { userId } = await requireSession();
   if (!isValidObjectId(roadtripId)) return;
