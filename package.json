@@ -11,7 +11,8 @@
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "reset:dev": "node --env-file=.env scripts/reset-dev-user.mjs"
   },
   "dependencies": {
     "@ai-sdk/anthropic": "^3.0.81",

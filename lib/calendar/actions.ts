@@ -63,6 +63,19 @@ export async function addToCalendar(input: AddToCalendarInput): Promise<Calendar
   return { ok: true };
 }
 
+/** Sets or clears the start time ("HH:mm", or empty to remove) on an existing entry. */
+export async function setCalendarEntryTime(entryId: string, startTime: string): Promise<void> {
+  const { userId } = await requireSession();
+  if (!isValidObjectId(entryId)) return;
+  if (startTime && !/^\d{2}:\d{2}$/.test(startTime)) return;
+  await connectToDatabase();
+  await CalendarEntry.updateOne(
+    { _id: entryId, userId },
+    startTime ? { $set: { startTime } } : { $unset: { startTime: '' } },
+  );
+  revalidatePath('/plan');
+}
+
 export async function clearPlan(): Promise<void> {
   const { userId, trip } = await requireActiveTrip();
   if (!trip) return;

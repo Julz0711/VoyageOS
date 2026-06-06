@@ -4,27 +4,31 @@ import { User } from '@/models/User';
 import { Trip } from '@/models/Trip';
 import { ExploreItem, type IExploreItem } from '@/models/ExploreItem';
 import { PackingItem } from '@/models/PackingItem';
-import { seedPackingItems, seasonForDate } from '@/config/packing';
+import { CalendarEntry } from '@/models/CalendarEntry';
+import { ChecklistItem } from '@/models/ChecklistItem';
+import { Roadtrip } from '@/models/Roadtrip';
 
 /**
- * Seeds a starter trip (Nissedal) for a brand-new user, so the app has data to browse on first
- * run. Runs ONCE per user (tracked by `user.hasSeeded`) — deleting all trips later does NOT
- * re-seed.
+ * Seeds a ready-to-explore DEMO trip for a brand-new user so the app feels alive on first run:
+ * a 1-week trip starting 30 days out, five activities (incl. a 2-stop roadtrip), a prefilled
+ * plan, a compact packing list, and a couple of checklist items. Runs ONCE per user
+ * (tracked by `user.hasSeeded`) — deleting trips later does NOT re-seed.
  */
 
-type SeedItem = Omit<IExploreItem, 'tripId' | 'userId'>;
+type SeedItem = Omit<IExploreItem, 'tripId' | 'userId' | 'routeStopIds'>;
 
-const NISSEDAL_BASE = { lat: 59.0205, lng: 8.5183, label: 'Utsjå · Treungen' };
+const BASE = { lat: 38.7128, lng: -9.13, label: 'Apartment · Alfama' };
 
-const seedItems: SeedItem[] = [
+// Order matters: indexes are reused below to wire the plan + roadtrip.
+const ITEMS: SeedItem[] = [
   {
-    title: 'Lake Nisser beaches',
-    category: 'swim',
-    subtitle: 'Sandy coves a stroll from the cabin.',
-    location: { lat: 59.025, lng: 8.52, areaLabel: 'Treungen' },
-    distanceFromBase: { minutes: 8, band: 'doorstep' },
-    tags: ['wild swim', 'family'],
-    weatherFit: ['fine'],
+    title: 'Time Out Market',
+    category: 'restaurant',
+    subtitle: 'Lisbon’s best food hall under one roof.',
+    location: { lat: 38.7067, lng: -9.1459, areaLabel: 'Cais do Sodré' },
+    distanceFromBase: { minutes: 12, band: '≤15' },
+    tags: ['food', 'tapas'],
+    weatherFit: ['any', 'wet'],
     dontMiss: true,
     isFavorite: true,
     externalLinks: [],
@@ -32,12 +36,26 @@ const seedItems: SeedItem[] = [
     images: [],
   },
   {
-    title: 'Café Utsikten',
-    category: 'restaurant',
-    subtitle: 'Waffles and coffee with a lake view.',
-    location: { lat: 59.03, lng: 8.51, areaLabel: 'Treungen' },
-    distanceFromBase: { minutes: 12, band: '≤15' },
-    tags: ['coffee', 'cake'],
+    title: 'Parque Eduardo VII',
+    category: 'nature',
+    subtitle: 'Hilltop park with a view straight down to the river.',
+    location: { lat: 38.7287, lng: -9.15, areaLabel: 'Avenidas Novas' },
+    distanceFromBase: { minutes: 15, band: '≤15' },
+    tags: ['park', 'walk'],
+    weatherFit: ['fine'],
+    dontMiss: false,
+    isFavorite: false,
+    externalLinks: [],
+    source: 'manual',
+    images: [],
+  },
+  {
+    title: 'Museu Nacional do Azulejo',
+    category: 'culture',
+    subtitle: 'Five centuries of Portuguese tilework.',
+    location: { lat: 38.7249, lng: -9.113, areaLabel: 'Beato' },
+    distanceFromBase: { minutes: 18, band: '≤45' },
+    tags: ['museum', 'art'],
     weatherFit: ['any', 'wet'],
     dontMiss: false,
     isFavorite: false,
@@ -46,13 +64,28 @@ const seedItems: SeedItem[] = [
     images: [],
   },
   {
-    title: 'Jettegrytene potholes',
-    category: 'on-the-water',
-    subtitle: 'Glacial rock pools — bring water shoes.',
-    location: { lat: 59.08, lng: 8.46, areaLabel: 'Nissedal' },
-    distanceFromBase: { minutes: 25, band: '≤45' },
-    tags: ['geology', 'swim'],
-    weatherFit: ['fine'],
+    title: 'Thermal spa afternoon',
+    category: 'activity',
+    subtitle: 'Sauna, steam and a long soak to reset.',
+    location: { lat: 38.717, lng: -9.139, areaLabel: 'Lisbon' },
+    distanceFromBase: { minutes: 10, band: '≤15' },
+    tags: ['spa', 'wellness', 'relax'],
+    weatherFit: ['any', 'wet'],
+    dontMiss: false,
+    isFavorite: false,
+    externalLinks: [],
+    source: 'manual',
+    images: [],
+  },
+  // --- Roadtrip stops (indexes 4 & 5) ---
+  {
+    title: 'Pena Palace, Sintra',
+    category: 'history',
+    subtitle: 'A fairytale palace above the hills.',
+    location: { lat: 38.7876, lng: -9.3905, areaLabel: 'Sintra' },
+    distanceFromBase: { minutes: 50, band: 'daytrip' },
+    tags: ['palace', 'views'],
+    weatherFit: ['fine', 'any'],
     dontMiss: true,
     isFavorite: false,
     externalLinks: [],
@@ -60,48 +93,43 @@ const seedItems: SeedItem[] = [
     images: [],
   },
   {
-    title: 'Hægefjell viewpoint',
+    title: 'Cabo da Roca',
     category: 'viewpoint',
-    subtitle: 'Big granite slab, bigger views.',
-    location: { lat: 59.11, lng: 8.5, areaLabel: 'Nissedal' },
-    distanceFromBase: { minutes: 35, band: '≤45' },
-    tags: ['panorama', 'sunset'],
+    subtitle: 'The westernmost point of mainland Europe.',
+    location: { lat: 38.7803, lng: -9.4989, areaLabel: 'Cascais' },
+    distanceFromBase: { minutes: 65, band: 'daytrip' },
+    tags: ['cliffs', 'sunset'],
     weatherFit: ['fine'],
-    dontMiss: false,
+    dontMiss: true,
     isFavorite: true,
     externalLinks: [],
     source: 'manual',
     images: [],
   },
-  {
-    title: 'Fjone forest loop',
-    category: 'hike',
-    subtitle: 'Easy 6 km loop through pine and lake shore.',
-    location: { lat: 59.06, lng: 8.55, areaLabel: 'Fjone' },
-    distanceFromBase: { minutes: 18, band: '≤45' },
-    tags: ['easy', 'forest'],
-    weatherFit: ['any'],
-    dontMiss: false,
-    isFavorite: false,
-    externalLinks: [],
-    source: 'manual',
-    images: [],
-  },
-  {
-    title: 'Telemark Canal day trip',
-    category: 'day-trip',
-    subtitle: 'Historic locks and a slow boat north.',
-    location: { lat: 59.4, lng: 9.0, areaLabel: 'Telemark' },
-    distanceFromBase: { minutes: 90, band: 'daytrip' },
-    tags: ['history', 'boat'],
-    weatherFit: ['any'],
-    dontMiss: true,
-    isFavorite: false,
-    externalLinks: [],
-    source: 'manual',
-    images: [],
-  },
 ];
+
+const PACKING: { group: string; label: string; essential?: boolean; quantityHint?: string }[] = [
+  { group: 'Essentials', label: 'Passport / ID', essential: true },
+  { group: 'Essentials', label: 'Phone + charger', essential: true },
+  { group: 'Essentials', label: 'Cards & some cash', essential: true },
+  { group: 'Clothing', label: 'Light layers', quantityHint: '4–5' },
+  { group: 'Clothing', label: 'Comfortable walking shoes' },
+  { group: 'Clothing', label: 'Swimwear' },
+  { group: 'Day bag', label: 'Sunscreen' },
+  { group: 'Day bag', label: 'Refillable water bottle' },
+  { group: 'Day bag', label: 'EU power adapter' },
+];
+
+/** UTC midnight, `days` from today. */
+function dayFromToday(days: number): Date {
+  const now = new Date();
+  return new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() + days));
+}
+
+/** UTC midnight, `n` days after `start`. */
+function addDays(start: Date, n: number): Date {
+  return new Date(Date.UTC(start.getUTCFullYear(), start.getUTCMonth(), start.getUTCDate() + n));
+}
 
 export async function seedTripForUser(userId: string): Promise<void> {
   await connectToDatabase();
@@ -117,29 +145,70 @@ export async function seedTripForUser(userId: string): Promise<void> {
   const existing = await Trip.countDocuments({ userId });
   if (existing > 0) return;
 
-  const dateStart = new Date('2026-07-10T00:00:00.000Z');
-  const dateEnd = new Date('2026-07-20T00:00:00.000Z');
-  const categories = Array.from(new Set(seedItems.map((i) => i.category)));
+  const dateStart = dayFromToday(7); // starts a week out
+  const dateEnd = addDays(dateStart, 6); // 1 week (7 days inclusive)
+  const categories = Array.from(new Set([...ITEMS.map((i) => i.category), 'road-trip']));
 
   const trip = await Trip.create({
     userId,
-    name: '10 days in Nissedal',
-    destination: 'Nissedal, Norway',
+    name: 'Demo: A week in Lisbon',
+    destination: 'Lisbon, Portugal',
     dateStart,
     dateEnd,
-    baseLocation: NISSEDAL_BASE,
+    baseLocation: BASE,
     categories,
     archived: false,
   });
+  const tripId = trip._id;
 
-  await ExploreItem.insertMany(
-    seedItems.map((item) => ({ ...item, tripId: trip._id, userId })),
-  );
+  // Explore items (4 activities + 2 roadtrip stops).
+  const created = await ExploreItem.insertMany(ITEMS.map((item) => ({ ...item, tripId, userId })));
+  const [food, nature, museum, spa, stopA, stopB] = created;
 
-  const packing = seedPackingItems(categories, seasonForDate(dateStart));
+  // Roadtrip = a mirror Explore card (category 'road-trip') + a Roadtrip record linking 2 stops.
+  const roadtripMirror = await ExploreItem.create({
+    tripId,
+    userId,
+    title: 'Sintra & Cascais loop',
+    category: 'road-trip',
+    subtitle: 'Roadtrip · 2 stops',
+    description: 'A scenic day loop from the cabin: Pena Palace, then out to the cliffs at Cabo da Roca.',
+    location: stopA.location,
+    distanceFromBase: { band: 'daytrip' },
+    tags: ['roadtrip'],
+    weatherFit: ['any'],
+    dontMiss: false,
+    isFavorite: false,
+    externalLinks: [],
+    source: 'manual',
+    images: [],
+    routeStopIds: [stopA._id, stopB._id],
+  });
+
+  await Roadtrip.create({
+    tripId,
+    userId,
+    name: 'Sintra & Cascais loop',
+    notes: 'Rent a car; allow a full day.',
+    stopIds: [stopA._id, stopB._id],
+    exploreItemId: roadtripMirror._id,
+  });
+
+  // Prefilled plan — day 1 (arrival) and day 7 (departure) kept free.
+  await CalendarEntry.insertMany([
+    { tripId, userId, date: addDays(dateStart, 0), note: 'Arrival', order: 0 },
+    { tripId, userId, exploreItemId: museum._id, date: addDays(dateStart, 1), order: 0 },
+    { tripId, userId, exploreItemId: nature._id, date: addDays(dateStart, 2), order: 0 },
+    { tripId, userId, exploreItemId: roadtripMirror._id, date: addDays(dateStart, 3), order: 0 },
+    { tripId, userId, exploreItemId: spa._id, date: addDays(dateStart, 4), order: 0 },
+    { tripId, userId, exploreItemId: food._id, date: addDays(dateStart, 5), order: 0 },
+    { tripId, userId, date: addDays(dateStart, 6), note: 'Departure', order: 0 },
+  ]);
+
+  // Compact packing list.
   await PackingItem.insertMany(
-    packing.map((p, index) => ({
-      tripId: trip._id,
+    PACKING.map((p, index) => ({
+      tripId,
       userId,
       category: p.group,
       label: p.label,
@@ -149,4 +218,10 @@ export async function seedTripForUser(userId: string): Promise<void> {
       order: index,
     })),
   );
+
+  // A couple of pre-trip tasks.
+  await ChecklistItem.insertMany([
+    { tripId, userId, label: 'Check your passport is valid for the trip', dueDate: addDays(dateStart, -5), done: false, order: 0 },
+    { tripId, userId, label: 'Reserve a rental car for the Sintra & Cascais loop', dueDate: addDays(dateStart, -3), done: false, order: 1 },
+  ]);
 }
