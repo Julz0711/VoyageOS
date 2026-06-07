@@ -28,11 +28,12 @@ export const metadata: Metadata = {
   title: { default: strings.appName, template: `%s · ${strings.appName}` },
   description: strings.tagline,
   applicationName: strings.appName,
-  // Installable-app hints for iOS Safari (Add to Home Screen).
+  // Installable-app hints for iOS Safari (Add to Home Screen). `default` keeps the
+  // status bar opaque over the light canvas (dark icons) rather than overlaying content.
   appleWebApp: {
     capable: true,
     title: strings.appName,
-    statusBarStyle: 'black-translucent',
+    statusBarStyle: 'default',
   },
 };
 

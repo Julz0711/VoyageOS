@@ -22,7 +22,7 @@ export function BottomNav() {
   return (
     <>
       <nav
-        className="fixed inset-x-0 bottom-0 z-30 flex items-stretch justify-between border-t border-border bg-surface/95 px-1 pb-[env(safe-area-inset-bottom)] backdrop-blur md:hidden"
+        className="fixed inset-x-0 bottom-0 z-30 flex items-stretch justify-between border-t border-border bg-surface/95 px-2 pt-1.5 pb-[env(safe-area-inset-bottom)] backdrop-blur md:hidden"
         aria-label="Primary"
       >
         {mobileLeftNav.map((item) => (
@@ -36,17 +36,17 @@ export function BottomNav() {
           aria-expanded={moreOpen}
           aria-label={strings.nav.more}
           className={cn(
-            'flex flex-1 flex-col items-center gap-0.5 py-2 text-[10px] font-medium transition-colors',
+            'flex flex-1 flex-col items-center gap-1 py-2.5 text-[11px] font-medium transition-colors',
             moreActive ? 'text-ink' : 'text-muted',
           )}
         >
           <span
             className={cn(
-              'flex size-7 items-center justify-center rounded-md transition-colors',
+              'flex size-9 items-center justify-center rounded-lg transition-colors',
               moreActive && 'bg-accent text-accent-foreground',
             )}
           >
-            <Menu className="size-[18px]" aria-hidden />
+            <Menu className="size-5" aria-hidden />
           </span>
           {strings.nav.more}
         </button>
@@ -118,7 +118,7 @@ function Tab({ item, active }: { item: NavItem; active: boolean }) {
           active && 'bg-accent text-accent-foreground',
         )}
       >
-        <Icon className="size-[18px]" aria-hidden />
+        <Icon className="size-5" aria-hidden />
       </span>
       {item.label}
     </Link>

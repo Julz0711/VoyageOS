@@ -20,7 +20,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
       <Sidebar />
       <div className="flex min-w-0 flex-1 flex-col">
         <ContextBar trips={trips} activeTrip={activeTrip} />
-        <main className="mx-auto w-full max-w-6xl flex-1 px-5 py-10 pb-28 md:px-12 md:py-12 md:pb-16">
+        <main className="mx-auto w-full max-w-6xl flex-1 px-5 py-10 pb-[calc(7rem+env(safe-area-inset-bottom))] md:px-12 md:py-12 md:pb-16">
           {children}
         </main>
       </div>

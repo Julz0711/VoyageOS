@@ -18,8 +18,9 @@ export default async function SettingsPage() {
         <p className="eyebrow mb-1 text-muted">Settings</p>
         <h1 className="font-display text-3xl font-semibold text-ink">AI assistant</h1>
         <p className="mt-1 text-sm text-muted">
-          Bring your own key for stronger models. Keys are encrypted at rest and never leave the
-          server.
+          The assistant runs on your own API key — add one to start chatting (free-tier providers
+          work too, but can run into issues when performing complex tasks. high-tier providers are providing bettter results). Keys are encrypted at rest and used only on the server to call your provider,
+          never exposed to your browser.
         </p>
       </div>
 

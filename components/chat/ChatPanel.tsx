@@ -25,11 +25,12 @@ function tokensOf(m: UIMessage): number | undefined {
   return typeof t === 'number' ? t : undefined;
 }
 
+// General prompts that make sense for any trip (the assistant pulls in trip context itself).
 const suggestions = [
-  'Find 4 wild-swim spots near the cabin',
-  'Plan a relaxed day 3 with a café and one easy hike',
+  'What are the must-see spots here?',
+  'Plan a relaxed first day',
   'What should I pack for the weather?',
-  'Suggest a rainy-day activity',
+  'Suggest a good rainy-day activity',
 ];
 
 export function ChatPanel({
@@ -49,6 +50,7 @@ export function ChatPanel({
   });
 
   const busy = status === 'submitted' || status === 'streaming';
+  const aiReady = aiInfo.available;
 
   // The SDK can momentarily emit two messages with the same id during multi-step/approval.
   // Collapse by id (last wins) so React keys stay unique and bubbles aren't duplicated.
@@ -63,7 +65,7 @@ export function ChatPanel({
 
   function send(text: string) {
     const t = text.trim();
-    if (!t || busy) return;
+    if (!t || busy || !aiReady) return;
     setInput('');
     void sendMessage({ text: t });
     queueMicrotask(() => scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight }));
@@ -109,28 +111,53 @@ export function ChatPanel({
         </div>
       </div>
 
+      {/* No-key banner — chat is disabled until a provider is connected in Settings. */}
+      {!aiReady && (
+        <div className="flex items-center gap-3 border-b border-border bg-accent/[0.07] px-5 py-3">
+          <span className="flex size-7 shrink-0 items-center justify-center rounded-pill bg-accent text-accent-foreground">
+            <Sparkles className="size-3.5" aria-hidden />
+          </span>
+          <div className="min-w-0 flex-1">
+            <p className="text-sm font-medium text-ink">Connect an AI provider to chat</p>
+            <p className="text-xs text-muted">
+              Add your own API key in Settings to enable the travel assistant.
+            </p>
+          </div>
+          <Link
+            href="/settings"
+            className="shrink-0 rounded-pill bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground transition-opacity hover:opacity-90"
+          >
+            Set up
+          </Link>
+        </div>
+      )}
+
       {/* Messages */}
       <div ref={scrollRef} className="flex-1 space-y-4 overflow-y-auto p-5">
         {renderedMessages.length === 0 ? (
           <div className="mx-auto max-w-md py-8 text-center">
             <p className="font-display text-lg font-semibold text-ink">
-              Where would you like to go?
+              {aiReady ? 'Where would you like to go?' : 'Your travel assistant is waiting'}
             </p>
             <p className="mt-1 text-sm text-muted">
-              I can research places and add them to your trip — you approve every change.
+              {aiReady
+                ? 'I can research places and add them to your trip — you approve every change.'
+                : 'Once you connect a provider, I can research places and build your itinerary.'}
             </p>
-            <div className="mt-5 flex flex-wrap justify-center gap-2">
-              {suggestions.map((s) => (
-                <button
-                  key={s}
-                  type="button"
-                  onClick={() => send(s)}
-                  className="rounded-pill border border-border bg-surface px-3 py-1.5 text-sm text-ink transition-colors hover:border-ink/25"
-                >
-                  {s}
-                </button>
-              ))}
-            </div>
+            {aiReady && (
+              <div className="mt-5 flex flex-wrap justify-center gap-2">
+                {suggestions.map((s) => (
+                  <button
+                    key={s}
+                    type="button"
+                    onClick={() => send(s)}
+                    className="rounded-pill border border-border bg-surface px-3 py-1.5 text-sm text-ink transition-colors hover:border-ink/25"
+                  >
+                    {s}
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
         ) : (
           renderedMessages.map((m) => (
@@ -161,15 +188,16 @@ export function ChatPanel({
         <input
           value={input}
           onChange={(e) => setInput(e.target.value)}
-          placeholder="Ask about your trip…"
-          className="h-10 flex-1 rounded-md border border-border bg-canvas/40 px-3 text-sm text-ink placeholder:text-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/40"
+          disabled={!aiReady}
+          placeholder={aiReady ? 'Ask about your trip…' : 'Connect a provider in Settings to chat'}
+          className="h-10 flex-1 rounded-md border border-border bg-canvas/40 px-3 text-sm text-ink placeholder:text-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/40 disabled:cursor-not-allowed disabled:opacity-60"
         />
         {busy ? (
           <Button type="button" size="icon" variant="secondary" onClick={() => stop()} aria-label="Stop">
             <Square className="size-3.5 fill-current" aria-hidden />
           </Button>
         ) : (
-          <Button type="submit" size="icon" disabled={!input.trim()} aria-label="Send">
+          <Button type="submit" size="icon" disabled={!aiReady || !input.trim()} aria-label="Send">
             <Send className="size-4" aria-hidden />
           </Button>
         )}

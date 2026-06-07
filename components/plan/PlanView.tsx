@@ -2,7 +2,7 @@
 
 import { useMemo, useOptimistic, useRef, useState, useTransition } from 'react';
 import { format } from 'date-fns';
-import { Plus, X, Sparkles, Trash2, Search, StickyNote, MapPin, Clock } from 'lucide-react';
+import { Plus, X, Trash2, Search, StickyNote, MapPin, Clock } from 'lucide-react';
 import type { TripDTO, ExploreItemDTO, PlanEntryDTO } from '@/lib/dto';
 import type { ForecastDay, ForecastSource, ClimateSummary } from '@/lib/weather/openMeteo';
 import { getCategory, categoryColor } from '@/config/categories';
@@ -150,9 +150,6 @@ export function PlanView({
           </p>
         </div>
         <div className="flex gap-2">
-          <Button variant="secondary" disabled title="AI itinerary suggestions arrive in Phase 3">
-            <Sparkles className="size-4" aria-hidden /> Suggest plan
-          </Button>
           <Button variant="secondary" onClick={clearAll} disabled={!hasEntries}>
             <Trash2 className="size-4" aria-hidden /> Clear
           </Button>

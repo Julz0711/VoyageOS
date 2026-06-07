@@ -11,12 +11,16 @@ import { theme } from '@/config/theme';
  */
 export default function manifest(): MetadataRoute.Manifest {
   return {
+    id: '/dashboard',
     name: strings.appName,
     short_name: strings.appName,
     description: strings.tagline,
-    start_url: '/',
+    // Launch straight into the app home (avoids the '/' → '/dashboard' redirect flash on
+    // cold start). Scope stays at '/' so every route is treated as in-app.
+    start_url: '/dashboard',
     scope: '/',
     display: 'standalone',
+    display_override: ['standalone', 'minimal-ui'],
     orientation: 'portrait',
     background_color: theme.colors.bg,
     theme_color: theme.colors.header,

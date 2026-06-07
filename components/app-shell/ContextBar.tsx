@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from 'react';
 import Link from 'next/link';
-import { ChevronDown, Plus, Check, Settings2, MapPin } from 'lucide-react';
+import { ChevronDown, Plus, Check, MapPin } from 'lucide-react';
 import type { TripDTO } from '@/lib/dto';
 import { strings } from '@/lib/strings';
 import { formatDateRange, tripCountdown } from '@/lib/dates';
@@ -33,17 +33,14 @@ export function ContextBar({
   }
 
   return (
-    <div className="sticky top-0 z-20 border-b border-border bg-canvas/85 backdrop-blur-sm">
-      {/* Mobile brand row (sidebar is hidden on mobile) */}
-      <div className="flex items-center justify-between px-5 pt-3 md:hidden">
+    <div className="sticky top-0 z-20 border-b border-border bg-canvas/85 pt-[env(safe-area-inset-top)] backdrop-blur-sm">
+      {/* Mobile brand row (sidebar is hidden on mobile; Settings lives in the bottom "More" sheet) */}
+      <div className="flex items-center px-5 pt-3 md:hidden">
         <Link href="/dashboard" className="flex items-center gap-2">
           <LogoMark className="size-7" />
           <span className="font-display text-lg font-semibold text-ink">
             Voyage<span className="text-muted">OS</span>
           </span>
-        </Link>
-        <Link href="/settings" aria-label="Settings" className="text-muted hover:text-ink">
-          <Settings2 className="size-5" aria-hidden />
         </Link>
       </div>
 
