@@ -1,0 +1,82 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Offline · VoyageOS</title>
+    <style>
+      :root {
+        color-scheme: dark;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        min-height: 100dvh;
+        display: grid;
+        place-items: center;
+        padding: 2rem;
+        background: #17191c;
+        color: #f4f5f3;
+        font-family:
+          ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+        text-align: center;
+      }
+      .card {
+        max-width: 22rem;
+      }
+      .mark {
+        width: 72px;
+        height: 72px;
+        margin: 0 auto 1.5rem;
+      }
+      h1 {
+        font-size: 1.25rem;
+        margin: 0 0 0.5rem;
+        font-weight: 650;
+      }
+      p {
+        margin: 0 0 1.75rem;
+        color: #9aa0a0;
+        line-height: 1.5;
+      }
+      button {
+        appearance: none;
+        border: 0;
+        cursor: pointer;
+        background: #c6f24e;
+        color: #17191c;
+        font: inherit;
+        font-weight: 600;
+        padding: 0.65rem 1.4rem;
+        border-radius: 999px;
+      }
+      button:active {
+        transform: translateY(1px);
+      }
+    </style>
+  </head>
+  <body>
+    <div class="card">
+      <svg
+        class="mark"
+        xmlns="http://www.w3.org/2000/svg"
+        viewBox="0 0 32 32"
+        aria-hidden="true"
+      >
+        <rect width="32" height="32" rx="7" fill="#17191c" />
+        <g transform="rotate(45 16 16)">
+          <path d="M16 5 L20 16 L12 16 Z" fill="#c6f24e" />
+          <path d="M16 27 L20 16 L12 16 Z" fill="#c6f24e" fill-opacity="0.4" />
+        </g>
+      </svg>
+      <h1>You're offline</h1>
+      <p>
+        VoyageOS can't reach the network right now. Check your connection — your
+        trips will be here when you're back.
+      </p>
+      <button onclick="location.reload()">Try again</button>
+    </div>
+  </body>
+</html>

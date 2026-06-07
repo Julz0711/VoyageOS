@@ -4,6 +4,7 @@ import './globals.css';
 import { themeRootCss } from '@/lib/theme/css';
 import { strings } from '@/lib/strings';
 import { Providers } from '@/app/providers';
+import { ServiceWorkerRegister } from '@/components/pwa/ServiceWorkerRegister';
 
 const sora = Sora({
   variable: '--font-sora',
@@ -27,12 +28,20 @@ export const metadata: Metadata = {
   title: { default: strings.appName, template: `%s · ${strings.appName}` },
   description: strings.tagline,
   applicationName: strings.appName,
+  // Installable-app hints for iOS Safari (Add to Home Screen).
+  appleWebApp: {
+    capable: true,
+    title: strings.appName,
+    statusBarStyle: 'black-translucent',
+  },
 };
 
 export const viewport: Viewport = {
   themeColor: '#17191c',
   width: 'device-width',
   initialScale: 1,
+  // Render under the status bar / home indicator when installed (standalone).
+  viewportFit: 'cover',
 };
 
 export default function RootLayout({
@@ -49,6 +58,7 @@ export default function RootLayout({
       </head>
       <body>
         <Providers>{children}</Providers>
+        <ServiceWorkerRegister />
       </body>
     </html>
   );
