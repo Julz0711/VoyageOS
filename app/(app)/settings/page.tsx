@@ -26,7 +26,6 @@ export default async function SettingsPage() {
 
       <ByokForm info={info} openRouterModels={openRouterModels} />
 
-      {/* Account */}
       <div className="space-y-3 border-t border-border pt-6">
         <p className="eyebrow text-muted">Account</p>
         <div className="flex items-center justify-between gap-3 rounded-lg border border-border bg-surface p-4">
