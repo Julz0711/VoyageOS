@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useTransition } from 'react';
+import { useRouter } from 'next/navigation';
 import { Trash2, X } from 'lucide-react';
 import { deleteTrip } from '@/lib/trips/actions';
 import { Button } from '@/components/ui/button';
@@ -10,11 +11,15 @@ export function DeleteTripButton({
   tripId,
   tripName,
   className,
+  redirectTo,
 }: {
   tripId: string;
   tripName: string;
   className?: string;
+  /** Where to navigate after a successful delete (e.g. from the summary page → '/dashboard'). */
+  redirectTo?: string;
 }) {
+  const router = useRouter();
   const [open, setOpen] = useState(false);
   const [pending, startTransition] = useTransition();
 
@@ -22,6 +27,7 @@ export function DeleteTripButton({
     startTransition(async () => {
       await deleteTrip(tripId);
       setOpen(false);
+      if (redirectTo) router.push(redirectTo);
     });
   }
 

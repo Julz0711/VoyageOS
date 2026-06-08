@@ -37,41 +37,53 @@ export function ShareExportBar({ shareToken }: { shareToken?: string }) {
   }
 
   return (
-    <div className="flex flex-wrap items-center gap-2 rounded-lg border border-border bg-surface p-3 shadow-card">
-      <a href="/api/calendar" download>
-        <Button variant="secondary" size="sm">
-          <Download className="size-4" aria-hidden /> Export .ics
-        </Button>
-      </a>
+    <div className="space-y-2 rounded-lg border border-border bg-surface p-3 shadow-card">
+      {/* Action row: export + share toggle */}
+      <div className="flex flex-wrap items-center gap-2">
+        <a href="/api/calendar" download>
+          <Button variant="secondary" size="sm">
+            <Download className="size-4" aria-hidden /> Export .ics
+          </Button>
+        </a>
 
-      {!token ? (
-        <Button variant="secondary" size="sm" onClick={enable} disabled={pending}>
-          <Share2 className="size-4" aria-hidden /> {pending ? 'Creating…' : 'Create share link'}
-        </Button>
-      ) : (
-        <>
-          <span className="flex min-w-0 flex-1 items-center gap-2">
-            <input
-              readOnly
-              value={shareUrl}
-              onFocus={(e) => e.currentTarget.select()}
-              className="h-9 min-w-0 flex-1 rounded-md border border-border bg-canvas/40 px-3 font-mono text-xs text-ink"
-              aria-label="Share link"
-            />
-            <Button variant="secondary" size="sm" onClick={copy}>
-              {copied ? <Check className="size-4" aria-hidden /> : <Copy className="size-4" aria-hidden />}
-              {copied ? 'Copied' : 'Copy'}
-            </Button>
-            <a href={shareUrl} target="_blank" rel="noopener noreferrer" aria-label="Open share page" title="Open">
-              <Button variant="ghost" size="icon">
-                <ExternalLink className="size-4" aria-hidden />
-              </Button>
-            </a>
-          </span>
+        {!token ? (
+          <Button variant="secondary" size="sm" onClick={enable} disabled={pending}>
+            <Share2 className="size-4" aria-hidden /> {pending ? 'Creating…' : 'Create share link'}
+          </Button>
+        ) : (
           <Button variant="ghost" size="sm" onClick={disable} disabled={pending}>
             <X className="size-4" aria-hidden /> Stop sharing
           </Button>
-        </>
+        )}
+      </div>
+
+      {/* Share link on its own row so it never collides with the buttons on narrow screens */}
+      {token && (
+        <div className="flex items-center gap-2">
+          <input
+            readOnly
+            value={shareUrl}
+            onFocus={(e) => e.currentTarget.select()}
+            className="h-9 min-w-0 flex-1 rounded-md border border-border bg-canvas/40 px-3 font-mono text-xs text-ink"
+            aria-label="Share link"
+          />
+          <Button variant="secondary" size="sm" onClick={copy} className="shrink-0">
+            {copied ? <Check className="size-4" aria-hidden /> : <Copy className="size-4" aria-hidden />}
+            <span className="hidden sm:inline">{copied ? 'Copied' : 'Copy'}</span>
+          </Button>
+          <a
+            href={shareUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            aria-label="Open share page"
+            title="Open"
+            className="shrink-0"
+          >
+            <Button variant="ghost" size="icon">
+              <ExternalLink className="size-4" aria-hidden />
+            </Button>
+          </a>
+        </div>
       )}
     </div>
   );

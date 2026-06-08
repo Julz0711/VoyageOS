@@ -49,7 +49,6 @@ export function ExploreDetailModal({
   const category = getCategory(item.category);
   const color = categoryColor(item.category);
   const Icon = category.icon;
-  const band = item.distanceFromBase?.band;
   const isRoadtrip = (item.routeStopIds?.length ?? 0) > 0;
 
   return (
@@ -88,10 +87,9 @@ export function ExploreDetailModal({
             <Icon className="size-5" aria-hidden />
           </span>
           <div className="min-w-0 flex-1">
-            <p className="eyebrow text-muted">
-              {category.label}
-              {band ? ` · ${bandLabel[band] ?? band}` : ''}
-            </p>
+            {/* Distance is shown in the body's “Distance” fact, so keep the eyebrow to just the
+                category here — avoids an awkward two-line wrap next to the action icons on mobile. */}
+            <p className="eyebrow text-muted">{category.label}</p>
             <h2 className="mt-0.5 font-display text-xl font-semibold leading-tight text-ink">
               {item.title}
             </h2>

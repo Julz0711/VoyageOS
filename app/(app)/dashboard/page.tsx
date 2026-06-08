@@ -1,9 +1,9 @@
 import Link from 'next/link';
-import { Plus, Pencil } from 'lucide-react';
+import { Plus, Pencil, ArrowRight } from 'lucide-react';
 import { requireSession } from '@/lib/auth/dal';
 import { getTrips } from '@/lib/trips/queries';
 import { getTripStats } from '@/lib/trips/stats';
-import { formatDateRange, tripCountdown } from '@/lib/dates';
+import { formatDateRange, tripCountdown, tripDayCount } from '@/lib/dates';
 import { strings } from '@/lib/strings';
 import { Button } from '@/components/ui/button';
 import { TripCover } from '@/components/trips/TripCover';
@@ -54,7 +54,7 @@ export default async function DashboardPage() {
             <hr className="atlas-rule flex-1" />
           </div>
 
-          <div className="grid gap-6 sm:grid-cols-2">
+          <div className="grid gap-6 [grid-template-columns:repeat(auto-fill,minmax(min(100%,22rem),1fr))]">
             {upcoming.map(({ trip, stats }, i) => {
               const countdown = tripCountdown(trip.dateStart, trip.dateEnd);
               const pct = stats.packingTotal
@@ -63,9 +63,17 @@ export default async function DashboardPage() {
               return (
                 <article
                   key={trip.id}
-                  className="group flex animate-fade-up flex-col overflow-hidden rounded-lg border border-border bg-surface shadow-card transition-shadow duration-200 hover:shadow-lift"
+                  className="group relative flex animate-fade-up flex-col overflow-hidden rounded-lg border border-border bg-surface shadow-card transition-shadow duration-200 hover:shadow-lift"
                   style={{ animationDelay: `${i * 60}ms` }}
                 >
+                  {/* Stretched link — the whole card opens the trip summary. Action buttons
+                      below sit above this overlay via z-index so they stay clickable. */}
+                  <Link
+                    href={`/trips/${trip.id}`}
+                    aria-label={`Open ${trip.name}`}
+                    className="absolute inset-0 z-10 rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/50"
+                  />
+
                   <TripCover
                     destination={trip.destination}
                     lat={trip.baseLocation.lat}
@@ -80,7 +88,7 @@ export default async function DashboardPage() {
                       <h3 className="font-display text-2xl font-semibold leading-tight text-ink">
                         {trip.name}
                       </h3>
-                      <span className="-mr-1.5 flex shrink-0 items-center gap-0.5">
+                      <span className="relative z-20 -mr-1.5 flex shrink-0 items-center gap-0.5">
                         <Link
                           href={`/trips/${trip.id}/edit`}
                           aria-label={`Edit ${trip.name}`}
@@ -97,7 +105,10 @@ export default async function DashboardPage() {
 
                     <div className="mt-6 flex items-center gap-6 font-mono text-[11px] text-muted">
                       <Stat label="EXPLORE" value={String(stats.exploreCount).padStart(2, '0')} />
-                      <Stat label="DAYS" value={String(stats.plannedDays).padStart(2, '0')} />
+                      <Stat
+                        label="DAYS"
+                        value={String(tripDayCount(trip.dateStart, trip.dateEnd)).padStart(2, '0')}
+                      />
                       <Stat label="PACKED" value={`${stats.packedCount}/${stats.packingTotal}`} />
                       <Stat label="DOCS" value={String(stats.documentsCount).padStart(2, '0')} />
                     </div>
@@ -109,12 +120,12 @@ export default async function DashboardPage() {
                       />
                     </div>
 
-                    <div className="mt-auto flex flex-wrap gap-1.5 pt-6">
-                      <QuickLink href="/explore" label={strings.nav.explore} />
-                      <QuickLink href="/plan" label={strings.nav.plan} />
-                      <QuickLink href="/map" label={strings.nav.map} />
-                      <QuickLink href="/pack" label={strings.nav.pack} />
-                      <QuickLink href="/docs" label={strings.nav.docs} />
+                    <div className="mt-auto flex items-center gap-1.5 pt-6 text-sm font-medium text-ink">
+                      Open trip
+                      <ArrowRight
+                        className="size-4 transition-transform group-hover:translate-x-0.5"
+                        aria-hidden
+                      />
                     </div>
                   </div>
                 </article>
@@ -133,7 +144,12 @@ export default async function DashboardPage() {
           <div className="divide-y divide-border rounded-lg border border-border bg-surface">
             {archived.map(({ trip }) => (
               <div key={trip.id} className="flex items-center justify-between gap-2 px-5 py-3">
-                <span className="truncate text-sm text-ink">{trip.name}</span>
+                <Link
+                  href={`/trips/${trip.id}`}
+                  className="truncate text-sm text-ink transition-colors hover:text-muted"
+                >
+                  {trip.name}
+                </Link>
                 <span className="flex items-center gap-2">
                   <span className="font-mono text-[11px] text-muted">
                     {formatDateRange(trip.dateStart, trip.dateEnd)}
@@ -165,13 +181,3 @@ function Stat({ label, value }: { label: string; value: string }) {
   );
 }
 
-function QuickLink({ href, label }: { href: string; label: string }) {
-  return (
-    <Link
-      href={href}
-      className="rounded-pill border border-border px-3 py-1 text-xs font-medium text-ink transition-colors hover:border-ink/30"
-    >
-      {label}
-    </Link>
-  );
-}

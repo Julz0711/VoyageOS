@@ -7,9 +7,19 @@ import type { Map as MlMap, Marker } from 'maplibre-gl';
 import { Heart } from 'lucide-react';
 import type { ExploreItemDTO, PlanEntryDTO, TripDTO } from '@/lib/dto';
 import { getCategory, mapGroups, type MapGroup } from '@/config/categories';
+import { theme } from '@/config/theme';
 import { tripDays } from '@/lib/dates';
 import { Select } from '@/components/ui/select';
 import { cn } from '@/lib/utils';
+
+/**
+ * Resolve a `--vos-*` theme variable to a concrete color. MapLibre paint properties can't
+ * read CSS custom properties (DOM marker/popup styles can), so layer colors must be literal.
+ */
+function cssColor(varName: string, fallback: string): string {
+  if (typeof window === 'undefined') return fallback;
+  return getComputedStyle(document.documentElement).getPropertyValue(varName).trim() || fallback;
+}
 
 const OSM_STYLE = {
   version: 8 as const,
@@ -129,7 +139,11 @@ export function MapView({
           type: 'line',
           source: 'day-route',
           layout: { 'line-cap': 'round', 'line-join': 'round' },
-          paint: { 'line-color': 'var(--vos-color-accent)', 'line-width': 3, 'line-dasharray': [1.5, 1] },
+          paint: {
+            'line-color': cssColor('--vos-color-accent', theme.colors.accent),
+            'line-width': 3,
+            'line-dasharray': [1.5, 1],
+          },
         });
         mapRef.current = map;
         setReady(true);

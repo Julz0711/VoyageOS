@@ -74,20 +74,21 @@ export function ChatPanel({
   return (
     <div className="flex h-[74dvh] flex-col overflow-hidden rounded-lg border border-border bg-surface shadow-card">
       {/* Header */}
-      <div className="flex items-center justify-between gap-3 border-b border-border px-5 py-3">
-        <span className="flex items-center gap-2">
-          <span className="flex size-7 items-center justify-center rounded-pill bg-accent text-accent-foreground">
+      <div className="flex items-center justify-between gap-2 border-b border-border px-4 py-3 sm:px-5">
+        <span className="flex min-w-0 items-center gap-2">
+          <span className="flex size-7 shrink-0 items-center justify-center rounded-pill bg-accent text-accent-foreground">
             <Sparkles className="size-3.5" aria-hidden />
           </span>
-          <span className="text-sm font-medium text-ink">Travel assistant</span>
+          <span className="truncate text-sm font-medium text-ink">Travel assistant</span>
         </span>
-        <div className="flex items-center gap-3">
+        <div className="flex shrink-0 items-center gap-2.5 sm:gap-3">
           {sessionTokens > 0 && (
             <span
               className="font-mono text-[11px] text-muted"
-              title="Total tokens used this session"
+              title={`${sessionTokens.toLocaleString()} tokens used this session`}
             >
-              {sessionTokens.toLocaleString()} tokens
+              {sessionTokens.toLocaleString()}
+              <span className="hidden sm:inline"> tokens</span>
             </span>
           )}
           {messages.length > 0 && (
@@ -95,18 +96,24 @@ export function ChatPanel({
               type="button"
               onClick={clearAll}
               disabled={busy}
+              aria-label="Clear chat"
+              title="Clear chat"
               className="flex items-center gap-1.5 font-mono text-[11px] text-muted hover:text-ink disabled:opacity-50"
             >
               <Eraser className="size-3.5" aria-hidden />
-              Clear chat
+              <span className="hidden sm:inline">Clear chat</span>
             </button>
           )}
           <Link
             href="/settings"
+            aria-label="AI settings"
+            title={aiInfo.available ? aiInfo.providerLabel : 'No key — set up'}
             className="flex items-center gap-1.5 font-mono text-[11px] text-muted hover:text-ink"
           >
-            <Settings2 className="size-3.5" aria-hidden />
-            {aiInfo.available ? aiInfo.providerLabel : 'No key — set up'}
+            <Settings2 className="size-3.5 shrink-0" aria-hidden />
+            <span className="hidden max-w-[9rem] truncate sm:inline">
+              {aiInfo.available ? aiInfo.providerLabel : 'No key — set up'}
+            </span>
           </Link>
         </div>
       </div>
