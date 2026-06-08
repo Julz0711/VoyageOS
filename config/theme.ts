@@ -7,14 +7,15 @@
  * `app/globals.css`).
  *
  * Aesthetic: modern, spacious travel app — clean white surfaces on a near-white canvas,
- * a vivid lime accent used as a FILL (with dark `accentFg` text), geometric sans
- * typography, and a monospace for small data labels (coordinates, dates, codes).
+ * a vivid lime accent used as a FILL (with dark `accentFg` text), and geometric sans
+ * typography throughout (Syne for big headings, Sora for sub-headings, DM Sans body).
  *
  * Note: lime `accent` is light — only use it as a background/fill with `accent-foreground`
  * text. For readable colored text/links use `ink`, `accent-2` (teal), or `success`.
  *
- * Fonts reference `--font-sora` / `--font-jakarta` / `--font-geist-mono`, provided by
- * `next/font` in `app/layout.tsx`. Literal families are fallbacks.
+ * Fonts reference `--font-syne` / `--font-dm-sans` / `--font-sora`, provided by
+ * `next/font` in `app/layout.tsx`. Literal families are fallbacks. `display` is the big hero
+ * font; `heading` is for smaller sub-headings; `sans` is body / UI.
  */
 export const theme = {
   colors: {
@@ -44,9 +45,9 @@ export const theme = {
     pill: '999px',
   },
   font: {
-    display: 'var(--font-sora), system-ui, sans-serif', // headings / titles
-    sans: 'var(--font-jakarta), system-ui, sans-serif', // body / UI
-    mono: 'var(--font-geist-mono), ui-monospace, "SFMono-Regular", monospace', // data labels
+    display: 'var(--font-syne), system-ui, sans-serif', // big hero headings / titles
+    heading: 'var(--font-sora), system-ui, sans-serif', // smaller sub-headings
+    sans: 'var(--font-dm-sans), system-ui, sans-serif', // body / UI
   },
   shadow: {
     card: '0 1px 2px rgba(20,22,24,.04), 0 6px 18px rgba(20,22,24,.05)',

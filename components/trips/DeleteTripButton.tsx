@@ -58,7 +58,7 @@ export function DeleteTripButton({
             aria-modal="true"
           >
             <div className="mb-2 flex items-start justify-between gap-2">
-              <h2 className="font-display text-lg font-semibold text-ink">Delete trip?</h2>
+              <h2 className="font-heading text-lg font-semibold text-ink">Delete trip?</h2>
               <button
                 type="button"
                 onClick={() => setOpen(false)}

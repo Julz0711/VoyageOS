@@ -4,12 +4,14 @@ import 'maplibre-gl/dist/maplibre-gl.css';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { format } from 'date-fns';
 import type { Map as MlMap, Marker } from 'maplibre-gl';
-import { Heart } from 'lucide-react';
+import { SlidersHorizontal } from 'lucide-react';
 import type { ExploreItemDTO, PlanEntryDTO, TripDTO } from '@/lib/dto';
 import { getCategory, mapGroups, type MapGroup } from '@/config/categories';
 import { theme } from '@/config/theme';
 import { tripDays } from '@/lib/dates';
 import { Select } from '@/components/ui/select';
+import { Modal } from '@/components/ui/modal';
+import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 
 /**
@@ -55,7 +57,7 @@ function numberedDot(color: string, n: number): HTMLDivElement {
   el.style.color = 'white';
   el.style.fontSize = '12px';
   el.style.fontWeight = '700';
-  el.style.fontFamily = 'var(--vos-font-mono)';
+  el.style.fontFamily = 'var(--vos-font-sans)';
   el.textContent = String(n);
   return el;
 }
@@ -85,11 +87,15 @@ export function MapView({
   const [group, setGroup] = useState<MapGroup | 'all'>('all');
   const [favoritesOnly, setFavoritesOnly] = useState(false);
   const [dayKey, setDayKey] = useState<string>('all');
+  const [showFilters, setShowFilters] = useState(false);
 
   const base = trip.baseLocation;
   const located = useMemo(() => items.filter((i) => i.location), [items]);
   const itemsById = useMemo(() => new Map(located.map((i) => [i.id, i])), [located]);
-  const days = useMemo(() => tripDays(trip.dateStart, trip.dateEnd), [trip.dateStart, trip.dateEnd]);
+  const days = useMemo(
+    () => tripDays(trip.dateStart, trip.dateEnd),
+    [trip.dateStart, trip.dateEnd],
+  );
 
   // Stops planned for the selected day, in itinerary order (located items only).
   const dayStops = useMemo(() => {
@@ -176,8 +182,8 @@ export function MapView({
         const color = mapGroups[getCategory(item.category).mapGroup].color;
         const el = dayMode ? numberedDot('var(--vos-color-accent)', idx + 1) : dot(color, 16);
         const popupHtml =
-          `<strong style="font-family:var(--vos-font-display);font-size:14px">${escapeHtml(item.title)}</strong>` +
-          `<br/><span style="font-family:var(--vos-font-mono);font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:var(--vos-color-muted)">${escapeHtml(getCategory(item.category).label)}</span>` +
+          `<strong style="font-family:var(--vos-font-heading);font-size:14px">${escapeHtml(item.title)}</strong>` +
+          `<br/><span style="font-family:var(--vos-font-sans);font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:var(--vos-color-muted)">${escapeHtml(getCategory(item.category).label)}</span>` +
           `<br/><a href="${directionsHref(item.location!.lat, item.location!.lng, base)}" target="_blank" rel="noopener" style="color:var(--vos-color-accent)">Directions ↗</a>`;
         const marker = new maplibregl.Marker({ element: el })
           .setLngLat([item.location!.lng, item.location!.lat])
@@ -190,18 +196,38 @@ export function MapView({
       const source = map.getSource('day-route') as { setData: (d: unknown) => void } | undefined;
       if (source) {
         if (dayMode && dayStops.length > 0) {
-          const coords = [[base.lng, base.lat], ...dayStops.map((i) => [i.location!.lng, i.location!.lat])];
+          const coords = [
+            [base.lng, base.lat],
+            ...dayStops.map((i) => [i.location!.lng, i.location!.lat]),
+          ];
           source.setData({
             type: 'FeatureCollection',
-            features: [{ type: 'Feature', properties: {}, geometry: { type: 'LineString', coordinates: coords } }],
+            features: [
+              {
+                type: 'Feature',
+                properties: {},
+                geometry: { type: 'LineString', coordinates: coords },
+              },
+            ],
           });
           // Fit to the day's points.
-          let minLng = base.lng, minLat = base.lat, maxLng = base.lng, maxLat = base.lat;
+          let minLng = base.lng,
+            minLat = base.lat,
+            maxLng = base.lng,
+            maxLat = base.lat;
           for (const [lng, lat] of coords) {
-            minLng = Math.min(minLng, lng); maxLng = Math.max(maxLng, lng);
-            minLat = Math.min(minLat, lat); maxLat = Math.max(maxLat, lat);
+            minLng = Math.min(minLng, lng);
+            maxLng = Math.max(maxLng, lng);
+            minLat = Math.min(minLat, lat);
+            maxLat = Math.max(maxLat, lat);
           }
-          map.fitBounds([[minLng, minLat], [maxLng, maxLat]], { padding: 64, maxZoom: 13, duration: 500 });
+          map.fitBounds(
+            [
+              [minLng, minLat],
+              [maxLng, maxLat],
+            ],
+            { padding: 64, maxZoom: 13, duration: 500 },
+          );
         } else {
           source.setData(EMPTY_FC);
         }
@@ -215,63 +241,101 @@ export function MapView({
 
   const dayMode = dayKey !== 'all';
 
+  // Group + favorites only apply when viewing all places; a single day shows its ordered stops.
+  const activeFilterCount = [dayMode, !dayMode && group !== 'all', !dayMode && favoritesOnly].filter(
+    Boolean,
+  ).length;
+
+  const filterControls = (
+    <>
+      <Field label="Day">
+        <Select value={dayKey} onChange={(e) => setDayKey(e.target.value)}>
+          <option value="all">All places</option>
+          {days.map((d, i) => (
+            <option key={format(d, 'yyyy-MM-dd')} value={format(d, 'yyyy-MM-dd')}>
+              Day {i + 1} · {format(d, 'EEE d MMM')}
+            </option>
+          ))}
+        </Select>
+      </Field>
+
+      {!dayMode && (
+        <Field label="Group">
+          <Select value={group} onChange={(e) => setGroup(e.target.value as MapGroup | 'all')}>
+            <option value="all">All groups</option>
+            {(Object.keys(mapGroups) as MapGroup[]).map((g) => (
+              <option key={g} value={g}>
+                {mapGroups[g].label}
+              </option>
+            ))}
+          </Select>
+        </Field>
+      )}
+
+      {!dayMode && (
+        <Field label="Show">
+          <Select
+            value={favoritesOnly ? 'fav' : 'all'}
+            onChange={(e) => setFavoritesOnly(e.target.value === 'fav')}
+          >
+            <option value="all">All places</option>
+            <option value="fav">Favorites only</option>
+          </Select>
+        </Field>
+      )}
+    </>
+  );
+
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
-          <p className="eyebrow mb-1 text-muted">The territory</p>
+          <p className="eyebrow text-muted mb-1">The territory</p>
           <h1 className="font-display text-3xl font-semibold">Map</h1>
         </div>
-        <div className="flex items-center gap-2">
-          <Select value={dayKey} onChange={(e) => setDayKey(e.target.value)} aria-label="Day">
-            <option value="all">All places</option>
-            {days.map((d, i) => (
-              <option key={format(d, 'yyyy-MM-dd')} value={format(d, 'yyyy-MM-dd')}>
-                Day {i + 1} · {format(d, 'EEE d MMM')}
-              </option>
-            ))}
-          </Select>
-          {!dayMode && (
-            <button
-              type="button"
-              onClick={() => setFavoritesOnly((v) => !v)}
-              aria-pressed={favoritesOnly}
-              className={cn(
-                'inline-flex items-center gap-1 rounded-pill border px-3 py-1.5 text-sm transition-colors',
-                favoritesOnly
-                  ? 'border-primary bg-primary text-primary-foreground'
-                  : 'border-border bg-surface text-ink hover:bg-canvas',
-              )}
-            >
-              <Heart className={cn('size-3.5', favoritesOnly && 'fill-current')} aria-hidden /> Favorites
-            </button>
+        {/* Mobile filter button */}
+        <button
+          type="button"
+          onClick={() => setShowFilters(true)}
+          className={cn(
+            'rounded-pill inline-flex items-center gap-1.5 border px-3 py-1.5 text-sm transition-colors sm:hidden',
+            activeFilterCount > 0
+              ? 'border-primary bg-primary text-primary-foreground'
+              : 'border-border bg-surface text-ink hover:border-ink/30',
           )}
-        </div>
+        >
+          <SlidersHorizontal className="size-3.5" aria-hidden />
+          Filters
+          {activeFilterCount > 0 && (
+            <span className="bg-primary-foreground/20 rounded-full px-1.5 py-0.5 text-[10px] leading-none font-semibold">
+              {activeFilterCount}
+            </span>
+          )}
+        </button>
       </div>
 
-      {/* Group legend / filters (place mode only) */}
-      {!dayMode && (
-        <div className="flex flex-wrap gap-2">
-          <GroupChip active={group === 'all'} onClick={() => setGroup('all')} label="All" />
-          {(Object.keys(mapGroups) as MapGroup[]).map((g) => (
-            <GroupChip
-              key={g}
-              active={group === g}
-              onClick={() => setGroup(g)}
-              label={mapGroups[g].label}
-              color={mapGroups[g].color}
-            />
-          ))}
-        </div>
+      {/* Mobile filter modal */}
+      {showFilters && (
+        <Modal title="Filters" eyebrow="Map view" onClose={() => setShowFilters(false)}>
+          <div className="space-y-4 p-5">
+            {filterControls}
+            <div className="border-border flex justify-end border-t pt-4">
+              <Button onClick={() => setShowFilters(false)}>Show results</Button>
+            </div>
+          </div>
+        </Modal>
       )}
+
+      {/* Desktop filter bar */}
+      <div className="hidden flex-wrap items-end gap-x-4 gap-y-3 sm:flex">{filterControls}</div>
 
       <div
         ref={containerRef}
-        className="h-[60vh] w-full overflow-hidden rounded-lg border border-border"
+        className="border-border h-[60vh] w-full overflow-hidden rounded-lg border"
         role="region"
         aria-label="Trip map"
       />
-      <p className="text-xs text-muted">
+      <p className="text-muted text-xs">
         {dayMode
           ? dayStops.length > 0
             ? `${dayStops.length} planned ${dayStops.length === 1 ? 'stop' : 'stops'} this day, in order from your base.`
@@ -282,30 +346,13 @@ export function MapView({
   );
 }
 
-function GroupChip({
-  active,
-  onClick,
-  label,
-  color,
-}: {
-  active: boolean;
-  onClick: () => void;
-  label: string;
-  color?: string;
-}) {
+/** A labelled filter control (eyebrow label stacked above the input) — mirrors Explore. */
+function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
-    <button
-      type="button"
-      onClick={onClick}
-      aria-pressed={active}
-      className={cn(
-        'inline-flex items-center gap-1.5 rounded-pill border px-3 py-1 text-sm transition-colors',
-        active ? 'border-primary bg-primary text-primary-foreground' : 'border-border bg-surface text-ink hover:bg-canvas',
-      )}
-    >
-      {color && <span className="size-2.5 rounded-full" style={{ backgroundColor: color }} aria-hidden />}
-      {label}
-    </button>
+    <label className="flex flex-col gap-1">
+      <span className="eyebrow text-muted">{label}</span>
+      {children}
+    </label>
   );
 }
 

@@ -19,13 +19,13 @@ export default async function LoginPage() {
     <div className="relative flex min-h-dvh items-center justify-center px-4">
       <AtlasTexture />
 
-      <div className="w-full max-w-sm rounded-lg border border-border bg-surface p-8 shadow-lift">
+      <div className="border-border bg-surface shadow-lift w-full max-w-sm rounded-lg border p-8">
         <div className="mb-8 text-center">
           <LogoMark className="mx-auto mb-4 size-12" />
-          <h1 className="font-display text-3xl font-semibold text-ink">
+          <h1 className="font-display text-ink text-3xl font-semibold">
             Voyage<span className="text-muted">OS</span>
           </h1>
-          <p className="eyebrow mt-2 text-muted">{strings.tagline}</p>
+          <p className="eyebrow text-muted mt-2">{strings.tagline}</p>
         </div>
 
         <div className="space-y-3">
@@ -64,12 +64,12 @@ export default async function LoginPage() {
           )}
 
           {!anyOAuth && !devAvailable && (
-            <p className="text-center text-sm text-danger">No sign-in method configured.</p>
+            <p className="text-danger text-center text-sm">No sign-in method configured.</p>
           )}
         </div>
 
         {devAvailable && (
-          <p className="mt-6 border-t border-border pt-4 text-center font-mono text-[11px] leading-relaxed text-muted">
+          <p className="border-border text-muted mt-6 border-t pt-4 text-center font-sans text-[11px] leading-relaxed">
             Dev sign-in runs without keys. Set Google or Discord OAuth env vars for real sign-in.
           </p>
         )}

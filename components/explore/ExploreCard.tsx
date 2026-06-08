@@ -38,22 +38,31 @@ export function ExploreCard({
           onSelect(item);
         }
       }}
-      className="group flex cursor-pointer animate-fade-up flex-col overflow-hidden rounded-lg border border-border bg-surface shadow-card transition-shadow duration-200 hover:shadow-lift focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/50"
-      style={{ animationDelay: `${Math.min(index, 8) * 40}ms` }}
+      className={cn(
+        'group animate-fade-up border-border bg-surface shadow-card relative flex cursor-pointer flex-col overflow-hidden rounded-lg border transition-all duration-200',
+        'hover:shadow-lift hover:z-10 hover:scale-[1.02]',
+        'hover:border-[color-mix(in_srgb,var(--c)_45%,var(--vos-color-border))] hover:bg-[color-mix(in_srgb,var(--c)_5%,var(--vos-color-surface))]',
+        'focus-visible:ring-2 focus-visible:ring-[color-mix(in_srgb,var(--c)_55%,transparent)] focus-visible:outline-none',
+      )}
+      style={
+        { animationDelay: `${Math.min(index, 8) * 40}ms`, '--c': color } as React.CSSProperties
+      }
     >
       <div className="flex flex-1 flex-col p-5">
         <div className="flex items-center justify-between gap-2">
-          <p className="eyebrow flex min-w-0 items-center gap-1.5 text-muted">
-            <span className="size-2 shrink-0 rounded-full" style={{ backgroundColor: color }} aria-hidden />
+          <p className="eyebrow text-muted flex min-w-0 items-center gap-1.5">
+            <span
+              className="size-2 shrink-0 rounded-full transition-transform duration-200 group-hover:scale-125"
+              style={{ backgroundColor: color }}
+              aria-hidden
+            />
             <span className="truncate">
               {category.label}
               {band ? ` · ${bandLabel[band] ?? band}` : ''}
             </span>
           </p>
           <span className="flex shrink-0 items-center gap-1">
-            {item.dontMiss && (
-              <Star className="size-3.5 fill-accent text-accent" aria-hidden />
-            )}
+            {item.dontMiss && <Star className="fill-accent text-accent size-3.5" aria-hidden />}
             <button
               type="button"
               onClick={(e) => {
@@ -62,20 +71,29 @@ export function ExploreCard({
               }}
               aria-pressed={item.isFavorite}
               aria-label={item.isFavorite ? 'Remove favorite' : 'Add favorite'}
-              className="-m-1 p-1 text-muted transition-colors hover:text-danger"
+              className="text-muted hover:text-danger -m-1 p-1 transition-colors"
             >
-              <Heart className={cn('size-[18px]', item.isFavorite && 'fill-danger text-danger')} aria-hidden />
+              <Heart
+                className={cn('size-[18px]', item.isFavorite && 'fill-danger text-danger')}
+                aria-hidden
+              />
             </button>
           </span>
         </div>
 
-        <h3 className="mt-1.5 line-clamp-1 font-display text-base font-semibold text-ink">{item.title}</h3>
-        {item.subtitle && <p className="mt-0.5 line-clamp-2 text-sm text-ink/70">{item.subtitle}</p>}
+        <h3 className="font-heading text-ink mt-1.5 line-clamp-1 text-base font-semibold">
+          {item.title}
+        </h3>
+        {item.subtitle && (
+          <p className="text-ink/70 mt-0.5 line-clamp-2 text-sm">{item.subtitle}</p>
+        )}
 
-        <div className="mt-3 flex items-center gap-3 overflow-hidden font-mono text-[11px] text-muted">
-          <span className="shrink-0 text-muted/70">Nº{String(index + 1).padStart(2, '0')}</span>
+        <div className="text-muted mt-3 flex items-center gap-3 overflow-hidden font-sans text-[11px]">
+          <span className="text-muted/70 shrink-0">Nº{String(index + 1).padStart(2, '0')}</span>
           {item.distanceFromBase?.minutes != null && (
-            <span className="shrink-0">{String(item.distanceFromBase.minutes).padStart(2, '0')} MIN</span>
+            <span className="shrink-0">
+              {String(item.distanceFromBase.minutes).padStart(2, '0')} MIN
+            </span>
           )}
           {item.location && (
             <span className="truncate">

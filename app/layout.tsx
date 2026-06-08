@@ -1,25 +1,25 @@
 import type { Metadata, Viewport } from 'next';
-import { Sora, Plus_Jakarta_Sans, Geist_Mono } from 'next/font/google';
+import { Syne, DM_Sans, Sora } from 'next/font/google';
 import './globals.css';
 import { themeRootCss } from '@/lib/theme/css';
 import { strings } from '@/lib/strings';
 import { Providers } from '@/app/providers';
 import { ServiceWorkerRegister } from '@/components/pwa/ServiceWorkerRegister';
 
+const syne = Syne({
+  variable: '--font-syne',
+  subsets: ['latin'],
+  display: 'swap',
+});
+
+const dmSans = DM_Sans({
+  variable: '--font-dm-sans',
+  subsets: ['latin'],
+  display: 'swap',
+});
+
 const sora = Sora({
   variable: '--font-sora',
-  subsets: ['latin'],
-  display: 'swap',
-});
-
-const jakarta = Plus_Jakarta_Sans({
-  variable: '--font-jakarta',
-  subsets: ['latin'],
-  display: 'swap',
-});
-
-const geistMono = Geist_Mono({
-  variable: '--font-geist-mono',
   subsets: ['latin'],
   display: 'swap',
 });
@@ -45,14 +45,9 @@ export const viewport: Viewport = {
   viewportFit: 'cover',
 };
 
-export default function RootLayout({
-  children,
-}: Readonly<{ children: React.ReactNode }>) {
+export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
-    <html
-      lang="en"
-      className={`${sora.variable} ${jakarta.variable} ${geistMono.variable}`}
-    >
+    <html lang="en" className={`${syne.variable} ${dmSans.variable} ${sora.variable}`}>
       <head>
         {/* Inject theme tokens from config/theme.ts onto :root (server-rendered, no FOUC). */}
         <style id="vos-theme" dangerouslySetInnerHTML={{ __html: themeRootCss() }} />

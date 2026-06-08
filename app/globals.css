@@ -1,4 +1,4 @@
-@import "tailwindcss";
+@import 'tailwindcss';
 
 /*
  * Map Tailwind's token namespaces onto the runtime `--vos-*` CSS variables that are
@@ -7,7 +7,7 @@
  *
  * Utilities (examples): bg-canvas, bg-surface, text-ink, text-muted, border-border,
  * bg-primary, text-primary-foreground, bg-accent, bg-accent-2, rounded-md, rounded-pill,
- * font-serif, font-mono, shadow-card, shadow-lift, bg-map-swim ...
+ * font-display, font-heading, shadow-card, shadow-lift, bg-map-swim ...
  */
 @theme inline {
   --color-canvas: var(--vos-color-bg);
@@ -35,8 +35,8 @@
   --radius-pill: var(--vos-radius-pill);
 
   --font-display: var(--vos-font-display);
+  --font-heading: var(--vos-font-heading);
   --font-sans: var(--vos-font-sans);
-  --font-mono: var(--vos-font-mono);
 
   --shadow-card: var(--vos-shadow-card);
   --shadow-lift: var(--vos-shadow-lift);
@@ -51,27 +51,41 @@ body {
   background-color: var(--color-canvas);
   color: var(--color-ink);
   font-family: var(--font-sans);
-  font-feature-settings: "ss01", "cv01";
+  font-feature-settings: 'ss01', 'cv01';
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
 }
 
-/* Display headings */
-h1, h2, h3 {
-  font-family: var(--font-display);
-  letter-spacing: -0.02em;
+/* Default heading font — in @layer base so per-element `font-*` utilities (e.g. font-heading
+ * on smaller sub-headings) override it. Unlayered element rules would otherwise beat the
+ * layered Tailwind utility classes regardless of specificity. */
+@layer base {
+  h1,
+  h2,
+  h3 {
+    font-family: var(--font-display);
+    letter-spacing: -0.02em;
+  }
+
+  /* Tailwind v4's preflight resets interactive elements to `cursor: default`. Restore the
+   * pointer for enabled buttons and role=button elements (links already get it). */
+  button:not(:disabled),
+  [role='button']:not([aria-disabled='true']) {
+    cursor: pointer;
+  }
 }
 
 ::selection {
   background: color-mix(in srgb, var(--color-accent) 28%, transparent);
 }
 
-/* Field-guide "eyebrow" label: mono, uppercase, tracked. */
+/* Field-guide "eyebrow" label: uppercase, tracked — uses the sub-heading font (Sora). */
 .eyebrow {
-  font-family: var(--font-mono);
+  font-family: var(--font-heading);
   text-transform: uppercase;
-  letter-spacing: 0.14em;
-  font-size: 0.6875rem;
+  letter-spacing: 0.12em;
+  font-size: 0.625rem;
+  font-weight: 500;
 }
 
 /* Hairline rule used between field-guide entries / sections. */

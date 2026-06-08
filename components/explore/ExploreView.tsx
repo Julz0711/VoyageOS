@@ -1,12 +1,13 @@
 'use client';
 
 import { useMemo, useOptimistic, useState, useTransition } from 'react';
-import { Plus, Heart } from 'lucide-react';
+import { Plus, SlidersHorizontal } from 'lucide-react';
 import type { ExploreItemDTO } from '@/lib/dto';
 import { categories } from '@/config/categories';
 import { toggleFavorite, deleteExploreItem } from '@/lib/explore/actions';
 import { Button } from '@/components/ui/button';
 import { Select } from '@/components/ui/select';
+import { Modal } from '@/components/ui/modal';
 import { cn } from '@/lib/utils';
 import { ExploreCard } from './ExploreCard';
 import { ExploreDetailModal } from './ExploreDetailModal';
@@ -14,7 +15,7 @@ import { AddItemForm } from './AddItemForm';
 
 type WeatherFilter = 'all' | 'fine' | 'wet' | 'surprise';
 type DistanceFilter = 'all' | '≤15' | '≤45' | 'daytrip';
-type SortMode = 'area' | 'recent';
+type SortMode = 'area' | 'recent' | 'favorites';
 
 type OptimisticAction =
   | { type: 'favorite'; id: string; next: boolean }
@@ -66,8 +67,8 @@ export function ExploreView({ items }: { items: ExploreItemDTO[] }) {
   const [distance, setDistance] = useState<DistanceFilter>('all');
   const [weather, setWeather] = useState<WeatherFilter>('all');
   const [sort, setSort] = useState<SortMode>('area');
-  const [favoritesOnly, setFavoritesOnly] = useState(false);
   const [showAdd, setShowAdd] = useState(false);
+  const [showFilters, setShowFilters] = useState(false);
   const [surpriseIds, setSurpriseIds] = useState<string[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
 
@@ -97,11 +98,10 @@ export function ExploreView({ items }: { items: ExploreItemDTO[] }) {
     () =>
       optimisticItems.filter(
         (item) =>
-          (!favoritesOnly || item.isFavorite) &&
           (category === 'all' || item.category === category) &&
           matchesDistance(item, distance),
       ),
-    [optimisticItems, favoritesOnly, category, distance],
+    [optimisticItems, category, distance],
   );
 
   const filtered = useMemo(() => {
@@ -112,8 +112,13 @@ export function ExploreView({ items }: { items: ExploreItemDTO[] }) {
   }, [baseFiltered, weather, surpriseIds]);
 
   const orderIndex = useMemo(() => new Map(filtered.map((it, i) => [it.id, i])), [filtered]);
-  const itemsById = useMemo(() => new Map(optimisticItems.map((i) => [i.id, i])), [optimisticItems]);
-  const selectedItem = selectedId ? optimisticItems.find((i) => i.id === selectedId) ?? null : null;
+  const itemsById = useMemo(
+    () => new Map(optimisticItems.map((i) => [i.id, i])),
+    [optimisticItems],
+  );
+  const selectedItem = selectedId
+    ? (optimisticItems.find((i) => i.id === selectedId) ?? null)
+    : null;
   const selectedRouteStops = selectedItem?.routeStopIds
     ?.map((id) => itemsById.get(id))
     .filter((i): i is ExploreItemDTO => Boolean(i))
@@ -130,13 +135,21 @@ export function ExploreView({ items }: { items: ExploreItemDTO[] }) {
 
   const sections = useMemo(() => {
     if (sort === 'recent') {
-      const recent = [...filtered].sort((a, b) => (b.createdAt ?? '').localeCompare(a.createdAt ?? ''));
+      const recent = [...filtered].sort((a, b) =>
+        (b.createdAt ?? '').localeCompare(a.createdAt ?? ''),
+      );
       return recent.length > 0 ? [{ title: 'Recently added', items: recent }] : [];
+    }
+    if (sort === 'favorites') {
+      const favs = filtered.filter((i) => i.isFavorite);
+      return favs.length > 0 ? [{ title: 'Favorites', items: favs }] : [];
     }
     const doorstep = filtered.filter(
       (i) => i.distanceFromBase?.band === 'doorstep' || i.distanceFromBase?.band === '≤15',
     );
-    const further = filtered.filter((i) => !i.distanceFromBase || i.distanceFromBase.band === '≤45');
+    const further = filtered.filter(
+      (i) => !i.distanceFromBase || i.distanceFromBase.band === '≤45',
+    );
     const daytrips = filtered.filter((i) => i.distanceFromBase?.band === 'daytrip');
     return [
       { title: 'On your doorstep', items: doorstep },
@@ -145,87 +158,127 @@ export function ExploreView({ items }: { items: ExploreItemDTO[] }) {
     ].filter((s) => s.items.length > 0);
   }, [filtered, sort]);
 
+  const activeFilterCount = [
+    category !== 'all',
+    distance !== 'all',
+    weather !== 'all',
+    sort !== 'area',
+  ].filter(Boolean).length;
+
+  const filterControls = (
+    <>
+      <Field label="Category">
+        <Select value={category} onChange={(e) => setCategory(e.target.value)}>
+          <option value="all">All ({optimisticItems.length})</option>
+          {Object.values(categories)
+            .filter((c) => categoryCounts.has(c.id))
+            .map((c) => (
+              <option key={c.id} value={c.id}>
+                {c.label} ({categoryCounts.get(c.id)})
+              </option>
+            ))}
+        </Select>
+      </Field>
+
+      <Field label="Distance">
+        <Select value={distance} onChange={(e) => setDistance(e.target.value as DistanceFilter)}>
+          {distanceFilters.map((f) => (
+            <option key={f.value} value={f.value}>
+              {f.label}
+            </option>
+          ))}
+        </Select>
+      </Field>
+
+      <Field label="Show picks for">
+        <Select
+          value={weather}
+          onChange={(e) => {
+            const value = e.target.value as WeatherFilter;
+            if (value === 'surprise') rollSurprise();
+            else setWeather(value);
+          }}
+        >
+          {weatherFilters.map((f) => (
+            <option key={f.value} value={f.value}>
+              {f.label}
+            </option>
+          ))}
+        </Select>
+      </Field>
+
+      <Field label="Sort">
+        <Select value={sort} onChange={(e) => setSort(e.target.value as SortMode)}>
+          <option value="area">By area</option>
+          <option value="recent">Recently added</option>
+          <option value="favorites">Favorites only</option>
+        </Select>
+      </Field>
+    </>
+  );
+
   return (
     <div className="space-y-8">
       <div className="flex items-end justify-between gap-4">
         <div>
-          <p className="eyebrow mb-1 text-muted">The field guide</p>
-          <h1 className="font-display text-3xl font-semibold text-ink">Explore</h1>
+          <p className="eyebrow text-muted mb-1">The field guide</p>
+          <h1 className="font-display text-ink text-3xl font-semibold">Explore</h1>
         </div>
-        <Button onClick={() => setShowAdd((v) => !v)} variant={showAdd ? 'secondary' : 'primary'}>
-          <Plus className="size-4" aria-hidden /> Add place
-        </Button>
+        <div className="flex items-center gap-2">
+          {/* Mobile filter button */}
+          <button
+            type="button"
+            onClick={() => setShowFilters(true)}
+            className={cn(
+              'sm:hidden rounded-pill inline-flex items-center gap-1.5 border px-3 py-1.5 text-sm transition-colors',
+              activeFilterCount > 0
+                ? 'border-primary bg-primary text-primary-foreground'
+                : 'border-border bg-surface text-ink hover:border-ink/30',
+            )}
+          >
+            <SlidersHorizontal className="size-3.5" aria-hidden />
+            Filters
+            {activeFilterCount > 0 && (
+              <span className="bg-primary-foreground/20 rounded-full px-1.5 py-0.5 text-[10px] font-semibold leading-none">
+                {activeFilterCount}
+              </span>
+            )}
+          </button>
+          <Button onClick={() => setShowAdd(true)}>
+            <Plus className="size-4" aria-hidden /> Add place
+          </Button>
+        </div>
       </div>
 
-      {showAdd && <AddItemForm onAdded={() => setShowAdd(false)} />}
+      {showAdd && <AddItemForm onClose={() => setShowAdd(false)} />}
 
-      {/* Filters — labelled dropdowns; favorites stays a quick toggle */}
-      <div className="flex flex-wrap items-end gap-x-4 gap-y-3">
-        <Field label="Category">
-          <Select value={category} onChange={(e) => setCategory(e.target.value)}>
-            <option value="all">All ({optimisticItems.length})</option>
-            {Object.values(categories)
-              .filter((c) => categoryCounts.has(c.id))
-              .map((c) => (
-                <option key={c.id} value={c.id}>
-                  {c.label} ({categoryCounts.get(c.id)})
-                </option>
-              ))}
-          </Select>
-        </Field>
+      {/* Mobile filter modal */}
+      {showFilters && (
+        <Modal title="Filters" eyebrow="Narrow the field guide" onClose={() => setShowFilters(false)}>
+          <div className="space-y-4 p-5">
+            {filterControls}
+            <div className="border-border flex justify-end border-t pt-4">
+              <Button onClick={() => setShowFilters(false)}>Show results</Button>
+            </div>
+          </div>
+        </Modal>
+      )}
 
-        <Field label="Distance">
-          <Select
-            value={distance}
-            onChange={(e) => setDistance(e.target.value as DistanceFilter)}
-          >
-            {distanceFilters.map((f) => (
-              <option key={f.value} value={f.value}>
-                {f.label}
-              </option>
-            ))}
-          </Select>
-        </Field>
-
-        <Field label="Show picks for">
-          <Select
-            value={weather}
-            onChange={(e) => {
-              const value = e.target.value as WeatherFilter;
-              if (value === 'surprise') rollSurprise();
-              else setWeather(value);
-            }}
-          >
-            {weatherFilters.map((f) => (
-              <option key={f.value} value={f.value}>
-                {f.label}
-              </option>
-            ))}
-          </Select>
-        </Field>
-
-        <Field label="Sort">
-          <Select value={sort} onChange={(e) => setSort(e.target.value as SortMode)}>
-            <option value="area">By area</option>
-            <option value="recent">Recently added</option>
-          </Select>
-        </Field>
-
-        <Chip active={favoritesOnly} onClick={() => setFavoritesOnly((v) => !v)}>
-          <Heart className={cn('size-3.5', favoritesOnly && 'fill-current')} aria-hidden /> Favorites
-        </Chip>
-      </div>
+      {/* Desktop filter bar */}
+      <div className="hidden flex-wrap items-end gap-x-4 gap-y-3 sm:flex">{filterControls}</div>
 
       {sections.length === 0 ? (
-        <p className="rounded-lg border border-dashed border-border bg-surface/50 p-10 text-center text-muted">
-          Nothing matches these filters yet.
+        <p className="border-border bg-surface/50 text-muted rounded-lg border border-dashed p-10 text-center">
+          {sort === 'favorites'
+            ? 'No favorites yet — tap the heart on any place to save it here.'
+            : 'Nothing matches these filters yet.'}
         </p>
       ) : (
         sections.map((section) => (
           <section key={section.title} className="space-y-4">
             <div className="flex items-center gap-3">
               <h2 className="eyebrow text-ink">{section.title}</h2>
-              <span className="font-mono text-[11px] text-muted">
+              <span className="text-muted font-sans text-[11px]">
                 {String(section.items.length).padStart(2, '0')}
               </span>
               <hr className="atlas-rule flex-1" />
@@ -265,31 +318,5 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
       <span className="eyebrow text-muted">{label}</span>
       {children}
     </label>
-  );
-}
-
-function Chip({
-  active,
-  onClick,
-  children,
-}: {
-  active: boolean;
-  onClick: () => void;
-  children: React.ReactNode;
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      aria-pressed={active}
-      className={cn(
-        'inline-flex shrink-0 items-center gap-1.5 rounded-pill border px-3 py-1 text-sm transition-colors',
-        active
-          ? 'border-primary bg-primary text-primary-foreground'
-          : 'border-border bg-surface text-ink hover:border-ink/30',
-      )}
-    >
-      {children}
-    </button>
   );
 }

@@ -1,12 +1,23 @@
 'use client';
 
 import { useMemo, useOptimistic, useState, useTransition } from 'react';
-import { Plus, Trash2, ArrowUp, ArrowDown, X, Route, Navigation, Search, Pencil } from 'lucide-react';
+import {
+  Plus,
+  Trash2,
+  ArrowUp,
+  ArrowDown,
+  X,
+  Route,
+  Navigation,
+  Search,
+  Pencil,
+} from 'lucide-react';
 import type { RoadtripDTO } from '@/lib/dto';
 import { createRoadtrip, updateRoadtrip, deleteRoadtrip } from '@/lib/roadtrips/actions';
 import { getCategory } from '@/config/categories';
 import { Button } from '@/components/ui/button';
 import { Input, Label } from '@/components/ui/input';
+import { Modal } from '@/components/ui/modal';
 
 type Candidate = { id: string; title: string; category: string };
 type Base = { lat: number; lng: number; label: string };
@@ -28,8 +39,9 @@ export function RoadtripsView({
   candidates: Candidate[];
   base: Base;
 }) {
-  const [optimistic, removeOptimistic] = useOptimistic(roadtrips, (list: RoadtripDTO[], id: string) =>
-    list.filter((r) => r.id !== id),
+  const [optimistic, removeOptimistic] = useOptimistic(
+    roadtrips,
+    (list: RoadtripDTO[], id: string) => list.filter((r) => r.id !== id),
   );
   const [, startTransition] = useTransition();
   // null = closed; { } = new; { roadtrip } = editing that one.
@@ -46,16 +58,13 @@ export function RoadtripsView({
     <div className="space-y-7">
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
-          <p className="eyebrow mb-1 text-muted">Chart a route</p>
-          <h1 className="font-display text-3xl font-semibold text-ink">Roadtrips</h1>
-          <p className="mt-1 text-sm text-muted">
+          <p className="eyebrow text-muted mb-1">Chart a route</p>
+          <h1 className="font-display text-ink text-3xl font-semibold">Roadtrips</h1>
+          <p className="text-muted mt-1 text-sm">
             String your places into an ordered route. Each roadtrip also shows up in Explore.
           </p>
         </div>
-        <Button
-          variant={editor ? 'secondary' : 'primary'}
-          onClick={() => setEditor((e) => (e ? null : {}))}
-        >
+        <Button onClick={() => setEditor({})}>
           <Plus className="size-4" aria-hidden /> New roadtrip
         </Button>
       </div>
@@ -70,7 +79,7 @@ export function RoadtripsView({
       )}
 
       {optimistic.length === 0 ? (
-        <p className="rounded-lg border border-dashed border-border bg-surface/50 p-10 text-center text-muted">
+        <p className="border-border bg-surface/50 text-muted rounded-lg border border-dashed p-10 text-center">
           No roadtrips yet — build one from your Explore places.
         </p>
       ) : (
@@ -78,17 +87,25 @@ export function RoadtripsView({
           {optimistic.map((rt) => {
             const href = directionsHref(base, rt.stops);
             return (
-              <section key={rt.id} className="rounded-lg border border-border bg-surface p-6 shadow-card">
+              <section
+                key={rt.id}
+                className="border-border bg-surface shadow-card rounded-lg border p-6"
+              >
                 <div className="mb-3 flex items-start justify-between gap-3">
                   <div className="min-w-0">
-                    <h2 className="flex items-center gap-2 font-display text-lg font-semibold text-ink">
-                      <Route className="size-4 text-muted" aria-hidden /> {rt.name}
+                    <h2 className="font-heading text-ink flex items-center gap-2 text-lg font-semibold">
+                      <Route className="text-muted size-4" aria-hidden /> {rt.name}
                     </h2>
-                    {rt.notes && <p className="mt-0.5 text-sm text-muted">{rt.notes}</p>}
+                    {rt.notes && <p className="text-muted mt-0.5 text-sm">{rt.notes}</p>}
                   </div>
                   <div className="flex shrink-0 items-center gap-1">
                     {href && (
-                      <a href={href} target="_blank" rel="noopener noreferrer" title="Open route in Google Maps">
+                      <a
+                        href={href}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        title="Open route in Google Maps"
+                      >
                         <Button variant="ghost" size="icon">
                           <Navigation className="size-4" aria-hidden />
                         </Button>
@@ -98,28 +115,30 @@ export function RoadtripsView({
                       type="button"
                       onClick={() => setEditor({ roadtrip: rt })}
                       aria-label="Edit roadtrip"
-                      className="p-1.5 text-muted/60 transition-colors hover:text-ink"
+                      className="text-muted/60 hover:text-ink p-1.5 transition-colors"
                     >
                       <Pencil className="size-4" aria-hidden />
                     </button>
                     <DeleteButton onConfirm={() => onDelete(rt.id)} />
                   </div>
                 </div>
-                <p className="mb-1.5 font-mono text-[11px] text-muted">
+                <p className="text-muted mb-1.5 font-sans text-[11px]">
                   Round trip from {base.label}
                 </p>
                 <ol className="space-y-1.5">
                   {rt.stops.map((s, i) => {
                     const Icon = getCategory(s.category).icon;
                     return (
-                      <li key={s.id} className="flex items-center gap-2.5 text-sm text-ink">
-                        <span className="flex size-5 shrink-0 items-center justify-center rounded-full bg-canvas font-mono text-[10px] text-muted">
+                      <li key={s.id} className="text-ink flex items-center gap-2.5 text-sm">
+                        <span className="bg-canvas text-muted flex size-5 shrink-0 items-center justify-center rounded-full font-sans text-[10px]">
                           {i + 1}
                         </span>
-                        <Icon className="size-3.5 shrink-0 text-muted" aria-hidden />
+                        <Icon className="text-muted size-3.5 shrink-0" aria-hidden />
                         <span className="truncate">{s.title}</span>
                         {s.areaLabel && (
-                          <span className="truncate font-mono text-[11px] text-muted">· {s.areaLabel}</span>
+                          <span className="text-muted truncate font-sans text-[11px]">
+                            · {s.areaLabel}
+                          </span>
                         )}
                       </li>
                     );
@@ -158,7 +177,8 @@ function Builder({
   const available = useMemo(
     () =>
       candidates.filter(
-        (c) => !selected.includes(c.id) && c.title.toLowerCase().includes(query.trim().toLowerCase()),
+        (c) =>
+          !selected.includes(c.id) && c.title.toLowerCase().includes(query.trim().toLowerCase()),
       ),
     [candidates, selected, query],
   );
@@ -186,7 +206,9 @@ function Builder({
     setSaving(true);
     const payload = { name: name.trim(), notes: notes.trim() || undefined, stopIds: selected };
     startTransition(async () => {
-      const res = editing ? await updateRoadtrip(editing.id, payload) : await createRoadtrip(payload);
+      const res = editing
+        ? await updateRoadtrip(editing.id, payload)
+        : await createRoadtrip(payload);
       setSaving(false);
       if (res.ok) onDone();
       else setError(res.error);
@@ -194,93 +216,140 @@ function Builder({
   }
 
   return (
-    <div className="space-y-4 rounded-lg border border-border bg-surface p-5 shadow-card">
-      <div className="grid gap-3 sm:grid-cols-2">
-        <div>
-          <Label htmlFor="rt-name">Name</Label>
-          <Input id="rt-name" value={name} onChange={(e) => setName(e.target.value)} placeholder="South coast loop" />
-        </div>
-        <div>
-          <Label htmlFor="rt-notes">Notes (optional)</Label>
-          <Input id="rt-notes" value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Best over 2 days" />
-        </div>
-      </div>
-
-      <div className="grid gap-4 md:grid-cols-2">
-        {/* Route (selected, ordered) */}
-        <div>
-          <p className="eyebrow mb-2 text-muted">Route ({selected.length})</p>
-          {selected.length === 0 ? (
-            <p className="rounded-md border border-dashed border-border p-4 text-sm text-muted">
-              Add places from the right, then reorder them into your route.
-            </p>
-          ) : (
-            <ol className="space-y-1.5">
-              {selected.map((id, i) => {
-                const c = byId.get(id);
-                if (!c) return null;
-                const Icon = getCategory(c.category).icon;
-                return (
-                  <li key={id} className="flex items-center gap-2 rounded-md border border-border bg-canvas/40 p-2">
-                    <span className="font-mono text-[11px] text-muted">{i + 1}</span>
-                    <Icon className="size-3.5 shrink-0 text-muted" aria-hidden />
-                    <span className="min-w-0 flex-1 truncate text-sm text-ink">{c.title}</span>
-                    <button type="button" onClick={() => move(i, -1)} disabled={i === 0} aria-label="Move up" className="p-1 text-muted hover:text-ink disabled:opacity-30">
-                      <ArrowUp className="size-3.5" aria-hidden />
-                    </button>
-                    <button type="button" onClick={() => move(i, 1)} disabled={i === selected.length - 1} aria-label="Move down" className="p-1 text-muted hover:text-ink disabled:opacity-30">
-                      <ArrowDown className="size-3.5" aria-hidden />
-                    </button>
-                    <button type="button" onClick={() => remove(id)} aria-label="Remove" className="p-1 text-muted hover:text-danger">
-                      <X className="size-3.5" aria-hidden />
-                    </button>
-                  </li>
-                );
-              })}
-            </ol>
-          )}
-        </div>
-
-        {/* Available places */}
-        <div>
-          <p className="eyebrow mb-2 text-muted">Your places</p>
-          <div className="relative mb-2">
-            <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted" aria-hidden />
-            <Input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search places…" className="pl-9" />
+    <Modal
+      title={editing ? 'Edit roadtrip' : 'New roadtrip'}
+      eyebrow="Route"
+      onClose={onDone}
+      panelClassName="max-w-2xl"
+    >
+      <div className="space-y-4 p-5">
+        <div className="grid gap-3 sm:grid-cols-2">
+          <div>
+            <Label htmlFor="rt-name">Name</Label>
+            <Input
+              id="rt-name"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              placeholder="South coast loop"
+            />
           </div>
-          <ul className="max-h-64 space-y-1 overflow-auto">
-            {available.length === 0 ? (
-              <li className="px-1 py-2 text-sm text-muted">No more places to add.</li>
+          <div>
+            <Label htmlFor="rt-notes">Notes (optional)</Label>
+            <Input
+              id="rt-notes"
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
+              placeholder="Best over 2 days"
+            />
+          </div>
+        </div>
+
+        <div className="grid gap-4 md:grid-cols-2">
+          {/* Route (selected, ordered) */}
+          <div>
+            <p className="eyebrow text-muted mb-2">Route ({selected.length})</p>
+            {selected.length === 0 ? (
+              <p className="border-border text-muted rounded-md border border-dashed p-4 text-sm">
+                Add places from the right, then reorder them into your route.
+              </p>
             ) : (
-              available.map((c) => {
-                const Icon = getCategory(c.category).icon;
-                return (
-                  <li key={c.id}>
-                    <button
-                      type="button"
-                      onClick={() => add(c.id)}
-                      className="flex w-full items-center gap-2 rounded-md p-2 text-left text-sm text-ink hover:bg-canvas"
+              <ol className="space-y-1.5">
+                {selected.map((id, i) => {
+                  const c = byId.get(id);
+                  if (!c) return null;
+                  const Icon = getCategory(c.category).icon;
+                  return (
+                    <li
+                      key={id}
+                      className="border-border bg-canvas/40 flex items-center gap-2 rounded-md border p-2"
                     >
-                      <Plus className="size-3.5 shrink-0 text-muted" aria-hidden />
-                      <Icon className="size-3.5 shrink-0 text-muted" aria-hidden />
-                      <span className="truncate">{c.title}</span>
-                    </button>
-                  </li>
-                );
-              })
+                      <span className="text-muted font-sans text-[11px]">{i + 1}</span>
+                      <Icon className="text-muted size-3.5 shrink-0" aria-hidden />
+                      <span className="text-ink min-w-0 flex-1 truncate text-sm">{c.title}</span>
+                      <button
+                        type="button"
+                        onClick={() => move(i, -1)}
+                        disabled={i === 0}
+                        aria-label="Move up"
+                        className="text-muted hover:text-ink p-1 disabled:opacity-30"
+                      >
+                        <ArrowUp className="size-3.5" aria-hidden />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => move(i, 1)}
+                        disabled={i === selected.length - 1}
+                        aria-label="Move down"
+                        className="text-muted hover:text-ink p-1 disabled:opacity-30"
+                      >
+                        <ArrowDown className="size-3.5" aria-hidden />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => remove(id)}
+                        aria-label="Remove"
+                        className="text-muted hover:text-danger p-1"
+                      >
+                        <X className="size-3.5" aria-hidden />
+                      </button>
+                    </li>
+                  );
+                })}
+              </ol>
             )}
-          </ul>
+          </div>
+
+          {/* Available places */}
+          <div>
+            <p className="eyebrow text-muted mb-2">Your places</p>
+            <div className="relative mb-2">
+              <Search
+                className="text-muted absolute top-1/2 left-3 size-4 -translate-y-1/2"
+                aria-hidden
+              />
+              <Input
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                placeholder="Search places…"
+                className="pl-9"
+              />
+            </div>
+            <ul className="max-h-64 space-y-1 overflow-auto">
+              {available.length === 0 ? (
+                <li className="text-muted px-1 py-2 text-sm">No more places to add.</li>
+              ) : (
+                available.map((c) => {
+                  const Icon = getCategory(c.category).icon;
+                  return (
+                    <li key={c.id}>
+                      <button
+                        type="button"
+                        onClick={() => add(c.id)}
+                        className="text-ink hover:bg-canvas flex w-full items-center gap-2 rounded-md p-2 text-left text-sm"
+                      >
+                        <Plus className="text-muted size-3.5 shrink-0" aria-hidden />
+                        <Icon className="text-muted size-3.5 shrink-0" aria-hidden />
+                        <span className="truncate">{c.title}</span>
+                      </button>
+                    </li>
+                  );
+                })
+              )}
+            </ul>
+          </div>
+        </div>
+
+        {error && <p className="text-danger text-sm">{error}</p>}
+        <div className="border-border flex justify-end gap-2 border-t pt-4">
+          <Button variant="secondary" onClick={onDone}>
+            Cancel
+          </Button>
+          <Button onClick={save} disabled={saving}>
+            {saving ? 'Saving…' : editing ? 'Save changes' : 'Save roadtrip'}
+          </Button>
         </div>
       </div>
-
-      {error && <p className="text-sm text-danger">{error}</p>}
-      <div className="flex justify-end gap-2">
-        <Button variant="secondary" onClick={onDone}>Cancel</Button>
-        <Button onClick={save} disabled={saving}>
-          {saving ? 'Saving…' : editing ? 'Save changes' : 'Save roadtrip'}
-        </Button>
-      </div>
-    </div>
+    </Modal>
   );
 }
 
@@ -289,13 +358,22 @@ function DeleteButton({ onConfirm }: { onConfirm: () => void }) {
   if (confirming) {
     return (
       <span className="flex items-center gap-1">
-        <Button variant="danger" size="sm" onClick={onConfirm}>Delete</Button>
-        <Button variant="ghost" size="sm" onClick={() => setConfirming(false)}>Cancel</Button>
+        <Button variant="danger" size="sm" onClick={onConfirm}>
+          Delete
+        </Button>
+        <Button variant="ghost" size="sm" onClick={() => setConfirming(false)}>
+          Cancel
+        </Button>
       </span>
     );
   }
   return (
-    <button type="button" onClick={() => setConfirming(true)} aria-label="Delete roadtrip" className="p-1.5 text-muted/60 hover:text-danger">
+    <button
+      type="button"
+      onClick={() => setConfirming(true)}
+      aria-label="Delete roadtrip"
+      className="text-muted/60 hover:text-danger p-1.5"
+    >
       <Trash2 className="size-4" aria-hidden />
     </button>
   );

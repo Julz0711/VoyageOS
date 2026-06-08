@@ -15,6 +15,7 @@ import {
 } from '@/lib/calendar/actions';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Modal } from '@/components/ui/modal';
 import { WeatherPanel } from '@/components/weather/WeatherPanel';
 import { ShareExportBar } from '@/components/plan/ShareExportBar';
 
@@ -70,9 +71,13 @@ export function PlanView({
   const [, startTransition] = useTransition();
   const [pickerDay, setPickerDay] = useState<{ key: string; label: string } | null>(null);
   const [openEntryId, setOpenEntryId] = useState<string | null>(null);
+  const [confirmClear, setConfirmClear] = useState(false);
   const tempIdRef = useRef(0);
 
-  const days = useMemo(() => tripDays(trip.dateStart, trip.dateEnd), [trip.dateStart, trip.dateEnd]);
+  const days = useMemo(
+    () => tripDays(trip.dateStart, trip.dateEnd),
+    [trip.dateStart, trip.dateEnd],
+  );
   const dayCount = tripDayCount(trip.dateStart, trip.dateEnd);
   const destinationShort = trip.destination.split(',')[0];
 
@@ -132,28 +137,22 @@ export function PlanView({
   }
 
   const hasEntries = optimistic.length > 0;
-  const openEntry = openEntryId ? optimistic.find((e) => e.id === openEntryId) ?? null : null;
+  const openEntry = openEntryId ? (optimistic.find((e) => e.id === openEntryId) ?? null) : null;
   const openEntryItem = openEntry?.exploreItemId
-    ? exploreItems.find((i) => i.id === openEntry.exploreItemId) ?? null
+    ? (exploreItems.find((i) => i.id === openEntry.exploreItemId) ?? null)
     : null;
 
   return (
     <div className="space-y-8">
-      <div className="flex flex-wrap items-start justify-between gap-4">
-        <div className="max-w-xl">
-          <p className="eyebrow mb-1 text-muted">The itinerary</p>
-          <h1 className="font-display text-3xl font-semibold text-ink">
-            Your {dayCount} days in {destinationShort}
-          </h1>
-          <p className="mt-1 text-sm text-muted">
-            A loose rhythm — tap a day to add a place or note, the × to remove.
-          </p>
-        </div>
-        <div className="flex gap-2">
-          <Button variant="secondary" onClick={clearAll} disabled={!hasEntries}>
-            <Trash2 className="size-4" aria-hidden /> Clear
-          </Button>
-        </div>
+      <div className="max-w-xl">
+        <p className="eyebrow text-muted mb-1">The itinerary</p>
+        <h1 className="font-display text-ink text-3xl font-semibold">
+          Your {dayCount} days in {destinationShort}
+        </h1>
+        <p className="text-muted mt-1 text-sm">
+          A loose rhythm — add places or notes to any day, then tap an entry to set a time or remove
+          it.
+        </p>
       </div>
 
       <ShareExportBar shareToken={trip.shareToken} />
@@ -173,18 +172,18 @@ export function PlanView({
           return (
             <section
               key={key}
-              className="flex animate-fade-up flex-col rounded-lg border border-border bg-surface p-4 shadow-card"
+              className="animate-fade-up border-border bg-surface shadow-card flex flex-col rounded-lg border p-4"
               style={{ animationDelay: `${Math.min(i, 8) * 35}ms` }}
             >
               <div className="flex items-start justify-between gap-2">
                 <div>
-                  <h3 className="font-display text-base font-semibold text-ink">
-                    Day {i + 1}
-                  </h3>
-                  <span className="font-mono text-[11px] text-muted">{format(day, 'EEE d MMM')}</span>
+                  <h3 className="font-heading text-ink text-base font-semibold">Day {i + 1}</h3>
+                  <span className="text-muted font-sans text-[11px]">
+                    {format(day, 'EEE d MMM')}
+                  </span>
                 </div>
                 {dayEntries.length > 0 && (
-                  <span className="flex size-6 items-center justify-center rounded-full bg-primary font-mono text-[11px] text-primary-foreground">
+                  <span className="bg-primary text-primary-foreground flex size-6 items-center justify-center rounded-full font-sans text-[11px]">
                     {dayEntries.length}
                   </span>
                 )}
@@ -192,18 +191,24 @@ export function PlanView({
 
               <div className="mt-3 flex-1 space-y-2">
                 {dayEntries.length === 0 ? (
-                  <p className="py-4 text-sm italic text-muted/70">Open day</p>
+                  <p className="text-muted/70 py-4 text-sm italic">Open day</p>
                 ) : (
                   dayEntries.map((entry) => (
-                    <EntryRow key={entry.id} entry={entry} onSelect={() => setOpenEntryId(entry.id)} />
+                    <EntryRow
+                      key={entry.id}
+                      entry={entry}
+                      onSelect={() => setOpenEntryId(entry.id)}
+                    />
                   ))
                 )}
               </div>
 
               <button
                 type="button"
-                onClick={() => setPickerDay({ key, label: `Day ${i + 1} · ${format(day, 'EEE d MMM')}` })}
-                className="mt-3 flex w-full items-center justify-center gap-1.5 rounded-md border border-dashed border-border py-2 text-sm font-medium text-muted transition-colors hover:border-ink/25 hover:text-ink"
+                onClick={() =>
+                  setPickerDay({ key, label: `Day ${i + 1} · ${format(day, 'EEE d MMM')}` })
+                }
+                className="border-border text-muted hover:border-ink/25 hover:text-ink mt-3 flex w-full items-center justify-center gap-1.5 rounded-md border border-dashed py-2 text-sm font-medium transition-colors"
               >
                 <Plus className="size-4" aria-hidden /> Add
               </button>
@@ -211,6 +216,44 @@ export function PlanView({
           );
         })}
       </div>
+
+      {hasEntries && (
+        <div className="border-border flex justify-center border-t pt-6">
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => setConfirmClear(true)}
+            className="text-muted hover:text-danger"
+          >
+            <Trash2 className="size-4" aria-hidden /> Clear entire plan
+          </Button>
+        </div>
+      )}
+
+      {confirmClear && (
+        <Modal title="Clear the plan?" eyebrow="Start over" onClose={() => setConfirmClear(false)}>
+          <div className="space-y-4 p-5">
+            <p className="text-muted text-sm leading-relaxed">
+              This removes every entry from all {dayCount} days. Your saved places stay in Explore —
+              only the day-by-day plan is cleared. This can’t be undone.
+            </p>
+            <div className="border-border flex justify-end gap-2 border-t pt-4">
+              <Button variant="secondary" onClick={() => setConfirmClear(false)}>
+                Cancel
+              </Button>
+              <Button
+                variant="danger"
+                onClick={() => {
+                  clearAll();
+                  setConfirmClear(false);
+                }}
+              >
+                <Trash2 className="size-4" aria-hidden /> Clear plan
+              </Button>
+            </div>
+          </div>
+        </Modal>
+      )}
 
       {pickerDay && (
         <DayPickerModal
@@ -253,7 +296,7 @@ function EntryRow({ entry, onSelect }: { entry: PlanEntryDTO; onSelect: () => vo
     <button
       type="button"
       onClick={onSelect}
-      className="flex w-full items-center gap-2.5 rounded-md bg-canvas/60 p-2 text-left transition-colors hover:bg-canvas"
+      className="bg-canvas/60 hover:bg-canvas flex w-full items-center gap-2.5 rounded-md p-2 text-left transition-colors"
     >
       <span
         className="flex size-8 shrink-0 items-center justify-center rounded-full"
@@ -262,8 +305,8 @@ function EntryRow({ entry, onSelect }: { entry: PlanEntryDTO; onSelect: () => vo
         <Icon className="size-4" aria-hidden />
       </span>
       <span className="min-w-0 flex-1">
-        <span className="block truncate text-sm font-medium text-ink">{entry.title}</span>
-        {meta && <span className="block truncate font-mono text-[11px] text-muted">{meta}</span>}
+        <span className="text-ink block truncate text-sm font-medium">{entry.title}</span>
+        {meta && <span className="text-muted block truncate font-sans text-[11px]">{meta}</span>}
       </span>
     </button>
   );
@@ -290,29 +333,37 @@ function DayPickerModal({
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-end justify-center bg-ink/30 p-4 backdrop-blur-sm sm:items-center"
+      className="bg-ink/30 fixed inset-0 z-50 flex items-end justify-center p-4 backdrop-blur-sm sm:items-center"
       onClick={onClose}
       role="presentation"
     >
       <div
-        className="w-full max-w-md overflow-hidden rounded-lg border border-border bg-surface shadow-lift"
+        className="border-border bg-surface shadow-lift w-full max-w-md overflow-hidden rounded-lg border"
         onClick={(e) => e.stopPropagation()}
         role="dialog"
         aria-modal="true"
       >
-        <div className="flex items-center justify-between border-b border-border px-5 py-4">
+        <div className="border-border flex items-center justify-between border-b px-5 py-4">
           <div>
             <span className="eyebrow text-muted">Add to</span>
-            <h2 className="font-display text-lg font-semibold text-ink">{dayLabel}</h2>
+            <h2 className="font-heading text-ink text-lg font-semibold">{dayLabel}</h2>
           </div>
-          <button type="button" onClick={onClose} aria-label="Close" className="text-muted hover:text-ink">
+          <button
+            type="button"
+            onClick={onClose}
+            aria-label="Close"
+            className="text-muted hover:text-ink"
+          >
             <X className="size-5" aria-hidden />
           </button>
         </div>
 
         <div className="space-y-3 p-5">
           <div className="relative">
-            <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted" aria-hidden />
+            <Search
+              className="text-muted absolute top-1/2 left-3 size-4 -translate-y-1/2"
+              aria-hidden
+            />
             <Input
               value={query}
               onChange={(e) => setQuery(e.target.value)}
@@ -324,7 +375,7 @@ function DayPickerModal({
 
           <ul className="max-h-64 space-y-0.5 overflow-auto">
             {filtered.length === 0 && (
-              <li className="px-1 py-2 text-sm text-muted">No matching places.</li>
+              <li className="text-muted px-1 py-2 text-sm">No matching places.</li>
             )}
             {filtered.map((item) => {
               const Icon = getCategory(item.category).icon;
@@ -334,17 +385,22 @@ function DayPickerModal({
                   <button
                     type="button"
                     onClick={() => onPick(item)}
-                    className="flex w-full items-center gap-2.5 rounded-md p-2 text-left hover:bg-canvas"
+                    className="hover:bg-canvas flex w-full items-center gap-2.5 rounded-md p-2 text-left"
                   >
                     <span
                       className="flex size-8 shrink-0 items-center justify-center rounded-full"
-                      style={{ backgroundColor: `color-mix(in srgb, ${color} 16%, transparent)`, color }}
+                      style={{
+                        backgroundColor: `color-mix(in srgb, ${color} 16%, transparent)`,
+                        color,
+                      }}
                     >
                       <Icon className="size-4" aria-hidden />
                     </span>
                     <span className="min-w-0 flex-1">
-                      <span className="block truncate text-sm font-medium text-ink">{item.title}</span>
-                      <span className="block truncate font-mono text-[11px] text-muted">
+                      <span className="text-ink block truncate text-sm font-medium">
+                        {item.title}
+                      </span>
+                      <span className="text-muted block truncate font-sans text-[11px]">
                         {getCategory(item.category).label}
                         {item.location?.areaLabel ? ` · ${item.location.areaLabel}` : ''}
                       </span>
@@ -360,7 +416,7 @@ function DayPickerModal({
               e.preventDefault();
               if (note.trim()) onNote(note.trim());
             }}
-            className="flex gap-2 border-t border-border pt-3"
+            className="border-border flex gap-2 border-t pt-3"
           >
             <Input
               value={note}
@@ -404,19 +460,19 @@ function PlanEntryModal({
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-end justify-center bg-ink/30 p-4 backdrop-blur-sm sm:items-center"
+      className="bg-ink/30 fixed inset-0 z-50 flex items-end justify-center p-4 backdrop-blur-sm sm:items-center"
       onClick={onClose}
       role="presentation"
     >
       <div
-        className="w-full max-w-md overflow-hidden rounded-lg border border-border bg-surface shadow-lift"
+        className="border-border bg-surface shadow-lift w-full max-w-md overflow-hidden rounded-lg border"
         onClick={(e) => e.stopPropagation()}
         role="dialog"
         aria-modal="true"
         aria-label={entry.title}
       >
         {/* Header */}
-        <div className="flex items-start gap-3 border-b border-border p-5">
+        <div className="border-border flex items-start gap-3 border-b p-5">
           <span
             className="flex size-11 shrink-0 items-center justify-center rounded-lg"
             style={{ backgroundColor: `color-mix(in srgb, ${color} 16%, transparent)`, color }}
@@ -427,21 +483,26 @@ function PlanEntryModal({
             <p className="eyebrow text-muted">
               {entry.category ? getCategory(entry.category).label : 'Note'} · {dayLabel}
             </p>
-            <h2 className="mt-0.5 font-display text-xl font-semibold leading-tight text-ink">
+            <h2 className="font-heading text-ink mt-0.5 text-xl leading-tight font-semibold">
               {entry.title}
             </h2>
           </div>
-          <button type="button" onClick={onClose} aria-label="Close" className="p-1.5 text-muted hover:text-ink">
+          <button
+            type="button"
+            onClick={onClose}
+            aria-label="Close"
+            className="text-muted hover:text-ink p-1.5"
+          >
             <X className="size-5" aria-hidden />
           </button>
         </div>
 
         {/* Body */}
         <div className="space-y-4 p-5">
-          {description && <p className="leading-relaxed text-ink/80">{description}</p>}
+          {description && <p className="text-ink/80 leading-relaxed">{description}</p>}
 
           <div>
-            <label htmlFor="entry-time" className="eyebrow mb-1 block text-muted">
+            <label htmlFor="entry-time" className="eyebrow text-muted mb-1 block">
               <Clock className="mr-1 inline size-3" aria-hidden /> Start time (optional)
             </label>
             <Input
@@ -458,7 +519,9 @@ function PlanEntryModal({
               {item.distanceFromBase && (
                 <Fact label="Distance">
                   {bandLabel[item.distanceFromBase.band] ?? item.distanceFromBase.band}
-                  {item.distanceFromBase.minutes != null ? ` · ${item.distanceFromBase.minutes} min` : ''}
+                  {item.distanceFromBase.minutes != null
+                    ? ` · ${item.distanceFromBase.minutes} min`
+                    : ''}
                 </Fact>
               )}
               {item.location?.areaLabel && <Fact label="Area">{item.location.areaLabel}</Fact>}
@@ -475,7 +538,7 @@ function PlanEntryModal({
         </div>
 
         {/* Footer */}
-        <div className="flex items-center justify-end border-t border-border p-4">
+        <div className="border-border flex items-center justify-end border-t p-4">
           <Button variant="ghost" size="sm" onClick={() => onRemove(entry.id)}>
             <Trash2 className="size-4" aria-hidden /> Remove from plan
           </Button>
@@ -489,7 +552,7 @@ function Fact({ label, children }: { label: string; children: React.ReactNode })
   return (
     <div>
       <dt className="eyebrow text-muted">{label}</dt>
-      <dd className="mt-0.5 font-mono text-sm text-ink">{children}</dd>
+      <dd className="text-ink mt-0.5 font-sans text-sm">{children}</dd>
     </div>
   );
 }

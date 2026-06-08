@@ -5,7 +5,7 @@ import { format } from 'date-fns';
 import { Droplets, Wind, Sunrise, Sunset, Sun, X, MapPin } from 'lucide-react';
 import type { ForecastDay, ForecastSource, ClimateSummary } from '@/lib/weather/openMeteo';
 import { tripDays } from '@/lib/dates';
-import { wmoInfo } from '@/lib/weather/wmo';
+import { wmoInfo, wmoColor } from '@/lib/weather/wmo';
 import { cn } from '@/lib/utils';
 
 function ymd(d: Date): string {
@@ -49,12 +49,12 @@ export function WeatherPanel({
   const selectedFc = selected ? byDate.get(ymd(selected)) : undefined;
 
   return (
-    <section className="rounded-lg border border-border bg-surface p-6 shadow-card">
+    <section className="border-border bg-surface shadow-card rounded-lg border p-6">
       <div className="mb-1 flex items-center justify-between gap-3">
         <h2 className="eyebrow text-muted">Forecast · {days.length} days</h2>
-        <span className="font-mono text-[11px] text-muted">tap a day for detail</span>
+        <span className="text-muted font-sans text-[11px]">tap a day for detail</span>
       </div>
-      <p className="mb-4 flex items-center gap-1.5 font-mono text-[11px] text-muted">
+      <p className="text-muted mb-4 flex items-center gap-1.5 font-sans text-[11px]">
         <MapPin className="size-3" aria-hidden />
         {sourceLabel(source)}
       </p>
@@ -75,16 +75,21 @@ export function WeatherPanel({
       </div>
 
       {hasGaps && (
-        <p className="mt-3 text-xs leading-relaxed text-muted">
+        <p className="text-muted mt-3 text-xs leading-relaxed">
           Days beyond the 16-day forecast show{' '}
-          <strong className="font-medium text-ink">seasonal averages</strong>
-          {climate ? ` (typical for these dates, from ${climate.yearsUsed.join(', ')})` : ''} — not a
-          precise forecast.
+          <strong className="text-ink font-medium">seasonal averages</strong>
+          {climate ? ` (typical for these dates, from ${climate.yearsUsed.join(', ')})` : ''} — not
+          a precise forecast.
         </p>
       )}
 
       {selected && (
-        <DayModal day={selected} fc={selectedFc} climate={climate} onClose={() => setSelected(null)} />
+        <DayModal
+          day={selected}
+          fc={selectedFc}
+          climate={climate}
+          onClose={() => setSelected(null)}
+        />
       )}
     </section>
   );
@@ -102,26 +107,38 @@ function DayCard({
   onClick: () => void;
 }) {
   const Icon = fc ? wmoInfo(fc.code).icon : Sun;
+  // Hover tint follows the day's weather (sun → amber, rain → blue, …); neutral for averages.
+  const accent = fc ? wmoColor(fc.code) : 'var(--vos-color-muted)';
   return (
     <button
       type="button"
       onClick={onClick}
+      style={{ '--c': accent } as React.CSSProperties}
       className={cn(
-        'flex min-w-[5.25rem] shrink-0 flex-col items-center gap-1 rounded-md border border-border px-3 py-3 text-center transition-colors hover:border-ink/25',
+        'group flex min-w-[5.25rem] shrink-0 flex-col items-center gap-1 rounded-md border border-border px-3 py-3 text-center transition-colors duration-200',
+        'hover:border-[color-mix(in_srgb,var(--c)_50%,var(--vos-color-border))]',
+        'hover:bg-[color-mix(in_srgb,var(--c)_10%,var(--vos-color-surface))]',
+        'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color-mix(in_srgb,var(--c)_55%,transparent)]',
         fc ? 'bg-canvas/40' : 'bg-canvas/20',
       )}
     >
       <span className="eyebrow text-muted">{format(day, 'EEE')}</span>
-      <span className="font-mono text-[11px] text-muted/70">{format(day, 'd MMM')}</span>
-      <Icon className={cn('my-1 size-6', fc ? 'text-primary' : 'text-muted')} aria-hidden />
+      <span className="text-muted/70 font-sans text-[11px]">{format(day, 'd MMM')}</span>
+      <Icon
+        className={cn(
+          'my-1 size-6 transition-colors group-hover:text-[var(--c)]',
+          fc ? 'text-primary' : 'text-muted',
+        )}
+        aria-hidden
+      />
       {fc ? (
         <>
-          <span className="font-mono text-sm">
+          <span className="font-sans text-sm">
             <span className="text-ink">{fc.tMax}°</span>{' '}
             <span className="text-muted">{fc.tMin}°</span>
           </span>
           {fc.precipProbMax != null && (
-            <span className="flex items-center gap-0.5 font-mono text-[11px] text-accent-2">
+            <span className="text-accent-2 flex items-center gap-0.5 font-sans text-[11px]">
               <Droplets className="size-3" aria-hidden />
               {fc.precipProbMax}%
             </span>
@@ -129,10 +146,10 @@ function DayCard({
         </>
       ) : (
         <>
-          <span className="font-mono text-sm text-muted">
+          <span className="text-muted font-sans text-sm">
             {climate ? `${climate.avgTMax}° ${climate.avgTMin}°` : '—'}
           </span>
-          <span className="font-mono text-[10px] uppercase tracking-wide text-muted/70">avg</span>
+          <span className="text-muted/70 font-sans text-[10px] tracking-wide uppercase">avg</span>
         </>
       )}
     </button>
@@ -155,27 +172,32 @@ function DayModal({
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-end justify-center bg-ink/30 p-4 backdrop-blur-sm sm:items-center"
+      className="bg-ink/30 fixed inset-0 z-50 flex items-end justify-center p-4 backdrop-blur-sm sm:items-center"
       onClick={onClose}
       role="presentation"
     >
       <div
-        className="w-full max-w-md overflow-hidden rounded-lg border border-border bg-surface shadow-lift"
+        className="border-border bg-surface shadow-lift w-full max-w-md overflow-hidden rounded-lg border"
         onClick={(e) => e.stopPropagation()}
         role="dialog"
         aria-modal="true"
       >
-        <div className="flex items-start justify-between gap-3 border-b border-border p-5">
+        <div className="border-border flex items-start justify-between gap-3 border-b p-5">
           <div className="flex items-center gap-3">
-            <Icon className="size-9 text-primary" aria-hidden />
+            <Icon className="text-primary size-9" aria-hidden />
             <div>
-              <h2 className="font-display text-lg font-semibold text-ink">
+              <h2 className="font-heading text-ink text-lg font-semibold">
                 {format(day, 'EEEE d MMM')}
               </h2>
-              <p className="text-sm text-muted">{fc ? info?.label : 'Seasonal average'}</p>
+              <p className="text-muted text-sm">{fc ? info?.label : 'Seasonal average'}</p>
             </div>
           </div>
-          <button type="button" onClick={onClose} aria-label="Close" className="text-muted hover:text-ink">
+          <button
+            type="button"
+            onClick={onClose}
+            aria-label="Close"
+            className="text-muted hover:text-ink"
+          >
             <X className="size-5" aria-hidden />
           </button>
         </div>
@@ -184,10 +206,10 @@ function DayModal({
           {fc ? (
             <>
               <div className="flex items-baseline gap-3">
-                <span className="font-display text-3xl font-semibold text-ink">{fc.tMax}°</span>
-                <span className="font-mono text-lg text-muted">{fc.tMin}°</span>
+                <span className="font-display text-ink text-3xl font-semibold">{fc.tMax}°</span>
+                <span className="text-muted font-sans text-lg">{fc.tMin}°</span>
                 {fc.precipProbMax != null && (
-                  <span className="ml-auto flex items-center gap-1 font-mono text-sm text-accent-2">
+                  <span className="text-accent-2 ml-auto flex items-center gap-1 font-sans text-sm">
                     <Droplets className="size-4" aria-hidden />
                     {fc.precipProbMax}%
                   </span>
@@ -195,9 +217,13 @@ function DayModal({
               </div>
 
               <dl className="grid grid-cols-2 gap-3">
-                {fc.windMax != null && <Fact icon={Wind} label="Wind" value={`${fc.windMax} km/h`} />}
+                {fc.windMax != null && (
+                  <Fact icon={Wind} label="Wind" value={`${fc.windMax} km/h`} />
+                )}
                 {fc.uvMax != null && <Fact icon={Sun} label="UV index" value={`${fc.uvMax}`} />}
-                {hhmm(fc.sunrise) && <Fact icon={Sunrise} label="Sunrise" value={hhmm(fc.sunrise)!} />}
+                {hhmm(fc.sunrise) && (
+                  <Fact icon={Sunrise} label="Sunrise" value={hhmm(fc.sunrise)!} />
+                )}
                 {hhmm(fc.sunset) && <Fact icon={Sunset} label="Sunset" value={hhmm(fc.sunset)!} />}
                 {fc.precipHours != null && (
                   <Fact icon={Droplets} label="Precip hours" value={`${fc.precipHours}h`} />
@@ -206,7 +232,7 @@ function DayModal({
 
               {fc.hours && fc.hours.length > 0 && (
                 <div>
-                  <p className="eyebrow mb-2 text-muted">Hourly</p>
+                  <p className="eyebrow text-muted mb-2">Hourly</p>
                   <div className="no-scrollbar flex gap-2 overflow-x-auto">
                     {fc.hours
                       .filter((_, i) => i % 2 === 0)
@@ -215,13 +241,17 @@ function DayModal({
                         return (
                           <div
                             key={h.time}
-                            className="flex min-w-12 shrink-0 flex-col items-center gap-1 rounded-md border border-border bg-canvas/40 px-2 py-2 text-center"
+                            className="border-border bg-canvas/40 flex min-w-12 shrink-0 flex-col items-center gap-1 rounded-md border px-2 py-2 text-center"
                           >
-                            <span className="font-mono text-[10px] text-muted">{h.time.slice(11, 16)}</span>
-                            <HIcon className="size-4 text-primary" aria-hidden />
-                            <span className="font-mono text-xs text-ink">{h.temp}°</span>
+                            <span className="text-muted font-sans text-[10px]">
+                              {h.time.slice(11, 16)}
+                            </span>
+                            <HIcon className="text-primary size-4" aria-hidden />
+                            <span className="text-ink font-sans text-xs">{h.temp}°</span>
                             {h.precipProb != null && (
-                              <span className="font-mono text-[10px] text-accent-2">{h.precipProb}%</span>
+                              <span className="text-accent-2 font-sans text-[10px]">
+                                {h.precipProb}%
+                              </span>
                             )}
                           </div>
                         );
@@ -240,13 +270,15 @@ function DayModal({
                     <Fact icon={Droplets} label="Avg rain/day" value={`${climate.avgPrecip} mm`} />
                     <Fact icon={Droplets} label="Rainy days" value={`${climate.rainyDayPct}%`} />
                   </div>
-                  <p className="rounded-md border border-dashed border-border bg-canvas/40 px-3 py-2 text-xs leading-relaxed text-muted">
-                    <strong className="font-medium text-ink">Seasonal average, not a forecast.</strong>{' '}
+                  <p className="border-border bg-canvas/40 text-muted rounded-md border border-dashed px-3 py-2 text-xs leading-relaxed">
+                    <strong className="text-ink font-medium">
+                      Seasonal average, not a forecast.
+                    </strong>{' '}
                     Typical conditions for these dates, from {climate.yearsUsed.join(', ')}.
                   </p>
                 </>
               ) : (
-                <p className="text-sm text-muted">
+                <p className="text-muted text-sm">
                   This day is beyond the 16-day forecast and no seasonal data is available.
                 </p>
               )}
@@ -258,21 +290,13 @@ function DayModal({
   );
 }
 
-function Fact({
-  icon: Icon,
-  label,
-  value,
-}: {
-  icon: typeof Sun;
-  label: string;
-  value: string;
-}) {
+function Fact({ icon: Icon, label, value }: { icon: typeof Sun; label: string; value: string }) {
   return (
-    <div className="rounded-md border border-border bg-canvas/40 px-3 py-2.5">
-      <span className="flex items-center gap-1.5 text-[11px] uppercase tracking-wide text-muted">
+    <div className="border-border bg-canvas/40 rounded-md border px-3 py-2.5">
+      <span className="text-muted flex items-center gap-1.5 text-[11px] tracking-wide uppercase">
         <Icon className="size-3" aria-hidden /> {label}
       </span>
-      <span className="mt-0.5 block font-mono text-base text-ink">{value}</span>
+      <span className="text-ink mt-0.5 block font-sans text-base">{value}</span>
     </div>
   );
 }

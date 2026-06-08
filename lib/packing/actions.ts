@@ -12,6 +12,7 @@ const addSchema = z.object({
   category: z.string().trim().min(1, 'Group is required').max(80),
   label: z.string().trim().min(1, 'Item is required').max(160),
   quantityHint: z.string().trim().max(80).optional(),
+  essential: z.boolean().optional(),
 });
 
 export type AddPackingState = { error?: string; ok?: boolean } | undefined;
@@ -27,6 +28,7 @@ export async function addPackingItem(
     category: formData.get('category'),
     label: formData.get('label'),
     quantityHint: formData.get('quantityHint') || undefined,
+    essential: formData.get('essential') === 'on',
   });
   if (!parsed.success) return { error: parsed.error.issues[0]?.message ?? 'Invalid item' };
 
@@ -40,6 +42,7 @@ export async function addPackingItem(
     category: parsed.data.category,
     label: parsed.data.label,
     quantityHint: parsed.data.quantityHint,
+    essential: parsed.data.essential ?? false,
     packed: false,
     order,
   });
@@ -52,11 +55,12 @@ const updateSchema = z.object({
   category: z.string().trim().min(1).max(80).optional(),
   label: z.string().trim().min(1).max(160).optional(),
   quantityHint: z.string().trim().max(80).nullable().optional(),
+  essential: z.boolean().optional(),
 });
 
 export async function updatePackingItem(
   itemId: string,
-  patch: { category?: string; label?: string; quantityHint?: string | null },
+  patch: { category?: string; label?: string; quantityHint?: string | null; essential?: boolean },
 ): Promise<{ ok: boolean; error?: string }> {
   const { userId } = await requireSession();
   if (!isValidObjectId(itemId)) return { ok: false, error: 'Invalid item' };
@@ -68,6 +72,7 @@ export async function updatePackingItem(
   if (parsed.data.category !== undefined) set.category = parsed.data.category;
   if (parsed.data.label !== undefined) set.label = parsed.data.label;
   if (parsed.data.quantityHint !== undefined) set.quantityHint = parsed.data.quantityHint ?? undefined;
+  if (parsed.data.essential !== undefined) set.essential = parsed.data.essential;
   if (Object.keys(set).length === 0) return { ok: true };
 
   await connectToDatabase();

@@ -12,7 +12,19 @@ import {
   type ToolUIPart,
   type DynamicToolUIPart,
 } from 'ai';
-import { Sparkles, Send, Check, X, Settings2, Loader2, Eraser, Search, MapPin, CloudSun, Square } from 'lucide-react';
+import {
+  Sparkles,
+  Send,
+  Check,
+  X,
+  Settings2,
+  Loader2,
+  Eraser,
+  Search,
+  MapPin,
+  CloudSun,
+  Square,
+} from 'lucide-react';
 import type { AiInfo } from '@/lib/ai/userSettings';
 import { writeToolNames } from '@/lib/ai/toolNames';
 import { clearChat } from '@/lib/chat/actions';
@@ -43,11 +55,12 @@ export function ChatPanel({
   const [input, setInput] = useState('');
   const scrollRef = useRef<HTMLDivElement>(null);
 
-  const { messages, sendMessage, status, stop, addToolApprovalResponse, setMessages, error } = useChat({
-    messages: initialMessages,
-    transport: new DefaultChatTransport({ api: '/api/chat' }),
-    sendAutomaticallyWhen: lastAssistantMessageIsCompleteWithApprovalResponses,
-  });
+  const { messages, sendMessage, status, stop, addToolApprovalResponse, setMessages, error } =
+    useChat({
+      messages: initialMessages,
+      transport: new DefaultChatTransport({ api: '/api/chat' }),
+      sendAutomaticallyWhen: lastAssistantMessageIsCompleteWithApprovalResponses,
+    });
 
   const busy = status === 'submitted' || status === 'streaming';
   const aiReady = aiInfo.available;
@@ -72,19 +85,19 @@ export function ChatPanel({
   }
 
   return (
-    <div className="flex h-[74dvh] flex-col overflow-hidden rounded-lg border border-border bg-surface shadow-card">
+    <div className="border-border bg-surface shadow-card flex h-[74dvh] flex-col overflow-hidden rounded-lg border">
       {/* Header */}
-      <div className="flex items-center justify-between gap-2 border-b border-border px-4 py-3 sm:px-5">
+      <div className="border-border flex items-center justify-between gap-2 border-b px-4 py-3 sm:px-5">
         <span className="flex min-w-0 items-center gap-2">
-          <span className="flex size-7 shrink-0 items-center justify-center rounded-pill bg-accent text-accent-foreground">
+          <span className="rounded-pill bg-accent text-accent-foreground flex size-7 shrink-0 items-center justify-center">
             <Sparkles className="size-3.5" aria-hidden />
           </span>
-          <span className="truncate text-sm font-medium text-ink">Travel assistant</span>
+          <span className="text-ink truncate text-sm font-medium">Travel assistant</span>
         </span>
         <div className="flex shrink-0 items-center gap-2.5 sm:gap-3">
           {sessionTokens > 0 && (
             <span
-              className="font-mono text-[11px] text-muted"
+              className="text-muted font-sans text-[11px]"
               title={`${sessionTokens.toLocaleString()} tokens used this session`}
             >
               {sessionTokens.toLocaleString()}
@@ -98,7 +111,7 @@ export function ChatPanel({
               disabled={busy}
               aria-label="Clear chat"
               title="Clear chat"
-              className="flex items-center gap-1.5 font-mono text-[11px] text-muted hover:text-ink disabled:opacity-50"
+              className="text-muted hover:text-ink flex items-center gap-1.5 font-sans text-[11px] disabled:opacity-50"
             >
               <Eraser className="size-3.5" aria-hidden />
               <span className="hidden sm:inline">Clear chat</span>
@@ -108,7 +121,7 @@ export function ChatPanel({
             href="/settings"
             aria-label="AI settings"
             title={aiInfo.available ? aiInfo.providerLabel : 'No key — set up'}
-            className="flex items-center gap-1.5 font-mono text-[11px] text-muted hover:text-ink"
+            className="text-muted hover:text-ink flex items-center gap-1.5 font-sans text-[11px]"
           >
             <Settings2 className="size-3.5 shrink-0" aria-hidden />
             <span className="hidden max-w-[9rem] truncate sm:inline">
@@ -120,19 +133,19 @@ export function ChatPanel({
 
       {/* No-key banner — chat is disabled until a provider is connected in Settings. */}
       {!aiReady && (
-        <div className="flex items-center gap-3 border-b border-border bg-accent/[0.07] px-5 py-3">
-          <span className="flex size-7 shrink-0 items-center justify-center rounded-pill bg-accent text-accent-foreground">
+        <div className="border-border bg-accent/[0.07] flex items-center gap-3 border-b px-5 py-3">
+          <span className="rounded-pill bg-accent text-accent-foreground flex size-7 shrink-0 items-center justify-center">
             <Sparkles className="size-3.5" aria-hidden />
           </span>
           <div className="min-w-0 flex-1">
-            <p className="text-sm font-medium text-ink">Connect an AI provider to chat</p>
-            <p className="text-xs text-muted">
+            <p className="text-ink text-sm font-medium">Connect an AI provider to chat</p>
+            <p className="text-muted text-xs">
               Add your own API key in Settings to enable the travel assistant.
             </p>
           </div>
           <Link
             href="/settings"
-            className="shrink-0 rounded-pill bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground transition-opacity hover:opacity-90"
+            className="rounded-pill bg-primary text-primary-foreground shrink-0 px-3 py-1.5 text-xs font-medium transition-opacity hover:opacity-90"
           >
             Set up
           </Link>
@@ -143,10 +156,10 @@ export function ChatPanel({
       <div ref={scrollRef} className="flex-1 space-y-4 overflow-y-auto p-5">
         {renderedMessages.length === 0 ? (
           <div className="mx-auto max-w-md py-8 text-center">
-            <p className="font-display text-lg font-semibold text-ink">
+            <p className="font-heading text-ink text-lg font-semibold">
               {aiReady ? 'Where would you like to go?' : 'Your travel assistant is waiting'}
             </p>
-            <p className="mt-1 text-sm text-muted">
+            <p className="text-muted mt-1 text-sm">
               {aiReady
                 ? 'I can research places and add them to your trip — you approve every change.'
                 : 'Once you connect a provider, I can research places and build your itinerary.'}
@@ -158,7 +171,7 @@ export function ChatPanel({
                     key={s}
                     type="button"
                     onClick={() => send(s)}
-                    className="rounded-pill border border-border bg-surface px-3 py-1.5 text-sm text-ink transition-colors hover:border-ink/25"
+                    className="rounded-pill border-border bg-surface text-ink hover:border-ink/25 border px-3 py-1.5 text-sm transition-colors"
                   >
                     {s}
                   </button>
@@ -173,12 +186,12 @@ export function ChatPanel({
         )}
 
         {busy && (
-          <p className="flex items-center gap-2 text-sm text-muted">
+          <p className="text-muted flex items-center gap-2 text-sm">
             <Loader2 className="size-4 animate-spin" aria-hidden /> Thinking…
           </p>
         )}
         {error && (
-          <div className="rounded-md border border-danger/30 bg-danger/5 px-3 py-2 text-sm text-danger">
+          <div className="border-danger/30 bg-danger/5 text-danger rounded-md border px-3 py-2 text-sm">
             {error.message || 'Something went wrong. Try again.'}
           </div>
         )}
@@ -190,17 +203,23 @@ export function ChatPanel({
           e.preventDefault();
           send(input);
         }}
-        className="flex items-center gap-2 border-t border-border p-3"
+        className="border-border flex items-center gap-2 border-t p-3"
       >
         <input
           value={input}
           onChange={(e) => setInput(e.target.value)}
           disabled={!aiReady}
           placeholder={aiReady ? 'Ask about your trip…' : 'Connect a provider in Settings to chat'}
-          className="h-10 flex-1 rounded-md border border-border bg-canvas/40 px-3 text-sm text-ink placeholder:text-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/40 disabled:cursor-not-allowed disabled:opacity-60"
+          className="border-border bg-canvas/40 text-ink placeholder:text-muted focus-visible:ring-accent/40 h-10 flex-1 rounded-md border px-3 text-sm focus-visible:ring-2 focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-60"
         />
         {busy ? (
-          <Button type="button" size="icon" variant="secondary" onClick={() => stop()} aria-label="Stop">
+          <Button
+            type="button"
+            size="icon"
+            variant="secondary"
+            onClick={() => stop()}
+            aria-label="Stop"
+          >
             <Square className="size-3.5 fill-current" aria-hidden />
           </Button>
         ) : (
@@ -231,7 +250,7 @@ function MessageView({
             <div
               key={i}
               className={cn(
-                'max-w-[85%] whitespace-pre-wrap rounded-lg px-3.5 py-2 text-sm leading-relaxed',
+                'max-w-[85%] rounded-lg px-3.5 py-2 text-sm leading-relaxed whitespace-pre-wrap',
                 isUser ? 'bg-primary text-primary-foreground' : 'bg-canvas/60 text-ink',
               )}
             >
@@ -245,7 +264,7 @@ function MessageView({
         return null;
       })}
       {!isUser && tokensOf(message) != null && (
-        <span className="font-mono text-[10px] text-muted/60">
+        <span className="text-muted/60 font-sans text-[10px]">
           {tokensOf(message)!.toLocaleString()} tokens
         </span>
       )}
@@ -278,11 +297,18 @@ function summarizeTool(name: string, input: unknown): string {
 }
 
 /** Friendly verb + the key argument for a read tool, e.g. Searching “wild swim Treungen”. */
-function readToolLabel(name: string, input: unknown): { icon: typeof Search; verb: string; detail?: string } {
+function readToolLabel(
+  name: string,
+  input: unknown,
+): { icon: typeof Search; verb: string; detail?: string } {
   const v = (input ?? {}) as Record<string, unknown>;
   switch (name) {
     case 'searchPlaces':
-      return { icon: Search, verb: 'Searching', detail: typeof v.query === 'string' ? v.query : undefined };
+      return {
+        icon: Search,
+        verb: 'Searching',
+        detail: typeof v.query === 'string' ? v.query : undefined,
+      };
     case 'getTripContext':
       return { icon: MapPin, verb: 'Reading your trip' };
     case 'getWeather':
@@ -308,7 +334,7 @@ function ToolView({
     const { icon: Icon, verb, detail } = readToolLabel(name, part.input);
     const done = part.state === 'output-available';
     return (
-      <span className="flex items-center gap-1.5 font-mono text-[11px] text-muted/80">
+      <span className="text-muted/80 flex items-center gap-1.5 font-sans text-[11px]">
         {done ? (
           <Icon className="size-3" aria-hidden />
         ) : (
@@ -324,11 +350,11 @@ function ToolView({
   // Write tools — approval flow.
   if (part.state === 'approval-requested') {
     return (
-      <div className="w-full max-w-[90%] rounded-lg border border-accent/40 bg-accent/[0.06] p-3.5">
-        <p className="flex items-center gap-1.5 font-mono text-[11px] uppercase tracking-wide text-muted">
-          <Sparkles className="size-3 text-accent" aria-hidden /> Approve change
+      <div className="border-accent/40 bg-accent/[0.06] w-full max-w-[90%] rounded-lg border p-3.5">
+        <p className="text-muted flex items-center gap-1.5 font-sans text-[11px] tracking-wide uppercase">
+          <Sparkles className="text-accent size-3" aria-hidden /> Approve change
         </p>
-        <p className="mt-1.5 text-sm text-ink">{summarizeTool(name, part.input)}</p>
+        <p className="text-ink mt-1.5 text-sm">{summarizeTool(name, part.input)}</p>
         <div className="mt-3 flex gap-2">
           <Button size="sm" onClick={() => onApprove({ id: part.approval.id, approved: true })}>
             <Check className="size-4" aria-hidden /> Approve
@@ -347,18 +373,18 @@ function ToolView({
 
   if (part.state === 'output-available') {
     return (
-      <span className="flex items-center gap-1.5 text-sm text-success">
+      <span className="text-success flex items-center gap-1.5 text-sm">
         <Check className="size-4" aria-hidden /> {summarizeTool(name, part.input)} — done
       </span>
     );
   }
 
   if (part.state === 'output-denied') {
-    return <span className="text-sm text-muted">Skipped: {summarizeTool(name, part.input)}</span>;
+    return <span className="text-muted text-sm">Skipped: {summarizeTool(name, part.input)}</span>;
   }
 
   if (part.state === 'output-error') {
-    return <span className="text-sm text-danger">Couldn’t {summarizeTool(name, part.input)}.</span>;
+    return <span className="text-danger text-sm">Couldn’t {summarizeTool(name, part.input)}.</span>;
   }
 
   return null;

@@ -1,6 +1,14 @@
 'use client';
 
-import { useActionState, useEffect, useMemo, useOptimistic, useRef, useState, useTransition } from 'react';
+import {
+  useActionState,
+  useEffect,
+  useMemo,
+  useOptimistic,
+  useRef,
+  useState,
+  useTransition,
+} from 'react';
 import { Plus, Trash2, CalendarClock } from 'lucide-react';
 import type { ChecklistItemDTO, TripDTO } from '@/lib/dto';
 import {
@@ -12,11 +20,10 @@ import {
 import { tripCountdown } from '@/lib/dates';
 import { Button } from '@/components/ui/button';
 import { Input, Label } from '@/components/ui/input';
+import { Modal } from '@/components/ui/modal';
 import { cn } from '@/lib/utils';
 
-type Action =
-  | { type: 'toggle'; id: string; done: boolean }
-  | { type: 'delete'; id: string };
+type Action = { type: 'toggle'; id: string; done: boolean } | { type: 'delete'; id: string };
 
 function reducer(items: ChecklistItemDTO[], action: Action): ChecklistItemDTO[] {
   switch (action.type) {
@@ -67,13 +74,13 @@ export function ChecklistView({ trip, items }: { trip: TripDTO; items: Checklist
     <div className="space-y-7">
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
-          <p className="eyebrow mb-1 text-muted">Before you go</p>
-          <h1 className="font-display text-3xl font-semibold text-ink">Checklist</h1>
-          <p className="mt-1 flex items-center gap-1.5 text-sm text-muted">
+          <p className="eyebrow text-muted mb-1">Before you go</p>
+          <h1 className="font-display text-ink text-3xl font-semibold">Checklist</h1>
+          <p className="text-muted mt-1 flex items-center gap-1.5 text-sm">
             <CalendarClock className="size-4" aria-hidden /> {countdown.label}
           </p>
         </div>
-        <Button variant={showAdd ? 'secondary' : 'primary'} onClick={() => setShowAdd((v) => !v)}>
+        <Button onClick={() => setShowAdd(true)}>
           <Plus className="size-4" aria-hidden /> Add task
         </Button>
       </div>
@@ -81,23 +88,26 @@ export function ChecklistView({ trip, items }: { trip: TripDTO; items: Checklist
       <div className="space-y-1.5">
         <div className="flex justify-between">
           <span className="eyebrow text-muted">Progress</span>
-          <span className="font-mono text-xs text-muted">
+          <span className="text-muted font-sans text-xs">
             {done}/{total} done · {pct}%
           </span>
         </div>
-        <div className="h-2 w-full overflow-hidden rounded-pill bg-canvas">
-          <div className="h-full rounded-pill bg-success transition-all" style={{ width: `${pct}%` }} />
+        <div className="rounded-pill bg-canvas h-2 w-full overflow-hidden">
+          <div
+            className="rounded-pill bg-success h-full transition-all"
+            style={{ width: `${pct}%` }}
+          />
         </div>
       </div>
 
-      {showAdd && <AddTaskForm onDone={() => setShowAdd(false)} />}
+      {showAdd && <AddTaskModal onClose={() => setShowAdd(false)} />}
 
       {total === 0 ? (
-        <p className="rounded-lg border border-dashed border-border bg-surface/50 p-10 text-center text-muted">
+        <p className="border-border bg-surface/50 text-muted rounded-lg border border-dashed p-10 text-center">
           Nothing to prep yet — add a task like “Check passport expiry”.
         </p>
       ) : (
-        <ul className="divide-y divide-border rounded-lg border border-border bg-surface">
+        <ul className="divide-border border-border bg-surface divide-y rounded-lg border">
           {sorted.map((item) => {
             const overdue = !item.done && item.dueDate != null && item.dueDate < today;
             return (
@@ -111,11 +121,19 @@ export function ChecklistView({ trip, items }: { trip: TripDTO; items: Checklist
                 />
                 <label
                   htmlFor={`task-${item.id}`}
-                  className={cn('flex-1 text-sm', item.done ? 'text-muted line-through' : 'text-ink')}
+                  className={cn(
+                    'flex-1 text-sm',
+                    item.done ? 'text-muted line-through' : 'text-ink',
+                  )}
                 >
                   {item.label}
                   {item.dueDate && (
-                    <span className={cn('ml-2 font-mono text-[11px]', overdue ? 'text-danger' : 'text-muted')}>
+                    <span
+                      className={cn(
+                        'ml-2 font-sans text-[11px]',
+                        overdue ? 'text-danger' : 'text-muted',
+                      )}
+                    >
                       {overdue ? 'overdue · ' : 'due '}
                       {item.dueDate}
                     </span>
@@ -125,7 +143,7 @@ export function ChecklistView({ trip, items }: { trip: TripDTO; items: Checklist
                   type="button"
                   onClick={() => onDelete(item.id)}
                   aria-label="Delete task"
-                  className="shrink-0 p-1 text-muted/60 transition-colors hover:text-danger"
+                  className="text-muted/60 hover:text-danger shrink-0 p-1 transition-colors"
                 >
                   <Trash2 className="size-4" aria-hidden />
                 </button>
@@ -138,33 +156,41 @@ export function ChecklistView({ trip, items }: { trip: TripDTO; items: Checklist
   );
 }
 
-function AddTaskForm({ onDone }: { onDone: () => void }) {
-  const [state, action, pending] = useActionState<AddChecklistState, FormData>(addChecklistItem, undefined);
+function AddTaskModal({ onClose }: { onClose: () => void }) {
+  const [state, action, pending] = useActionState<AddChecklistState, FormData>(
+    addChecklistItem,
+    undefined,
+  );
   const ref = useRef<HTMLFormElement>(null);
 
   useEffect(() => {
     if (state?.ok) {
       ref.current?.reset();
-      onDone();
+      onClose();
     }
-  }, [state, onDone]);
+  }, [state, onClose]);
 
   return (
-    <form ref={ref} action={action} className="grid gap-3 rounded-lg border border-border bg-surface p-5 sm:grid-cols-[1fr_auto_auto]">
-      <div>
-        <Label htmlFor="label">Task</Label>
-        <Input id="label" name="label" required placeholder="Check passport expiry" />
-      </div>
-      <div>
-        <Label htmlFor="dueDate">Due (optional)</Label>
-        <Input id="dueDate" name="dueDate" type="date" />
-      </div>
-      <div className="flex items-end">
-        <Button type="submit" disabled={pending}>
-          {pending ? 'Adding…' : 'Add'}
-        </Button>
-      </div>
-      {state?.error && <p className="text-sm text-danger sm:col-span-3">{state.error}</p>}
-    </form>
+    <Modal title="Add task" eyebrow="New task" onClose={onClose}>
+      <form ref={ref} action={action} className="space-y-3 p-5">
+        <div>
+          <Label htmlFor="label">Task</Label>
+          <Input id="label" name="label" required autoFocus placeholder="Check passport expiry" />
+        </div>
+        <div>
+          <Label htmlFor="dueDate">Due (optional)</Label>
+          <Input id="dueDate" name="dueDate" type="date" />
+        </div>
+        {state?.error && <p className="text-danger text-sm">{state.error}</p>}
+        <div className="border-border flex justify-end gap-2 border-t pt-4">
+          <Button type="button" variant="secondary" onClick={onClose}>
+            Cancel
+          </Button>
+          <Button type="submit" disabled={pending}>
+            <Plus className="size-4" aria-hidden /> {pending ? 'Adding…' : 'Add task'}
+          </Button>
+        </div>
+      </form>
+    </Modal>
   );
 }

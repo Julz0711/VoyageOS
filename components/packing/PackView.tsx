@@ -21,6 +21,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Input, Label } from '@/components/ui/input';
 import { Select } from '@/components/ui/select';
+import { Modal } from '@/components/ui/modal';
 import { cn } from '@/lib/utils';
 
 const NEW_GROUP = '__new__';
@@ -83,9 +84,16 @@ export function PackView({ items }: { items: PackingItemDTO[] }) {
       void resetPacking();
     });
   }
-  function onEdit(id: string, patch: { category?: string; label?: string; quantityHint?: string | null }) {
+  function onEdit(
+    id: string,
+    patch: { category?: string; label?: string; quantityHint?: string | null; essential?: boolean },
+  ) {
     startTransition(() => {
-      apply({ type: 'edit', id, patch: { ...patch, quantityHint: patch.quantityHint ?? undefined } });
+      apply({
+        type: 'edit',
+        id,
+        patch: { ...patch, quantityHint: patch.quantityHint ?? undefined },
+      });
       void updatePackingItem(id, patch);
     });
   }
@@ -94,14 +102,14 @@ export function PackView({ items }: { items: PackingItemDTO[] }) {
     <div className="space-y-7">
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
-          <p className="eyebrow mb-1 text-muted">The kit list</p>
+          <p className="eyebrow text-muted mb-1">The kit list</p>
           <h1 className="font-display text-3xl font-semibold">Pack</h1>
         </div>
         <div className="flex gap-2">
           <Button variant="secondary" onClick={onReset} disabled={!packed}>
             <RotateCcw className="size-4" aria-hidden /> Reset all
           </Button>
-          <Button variant={showAdd ? 'secondary' : 'primary'} onClick={() => setShowAdd((v) => !v)}>
+          <Button onClick={() => setShowAdd(true)}>
             <Plus className="size-4" aria-hidden /> Add item
           </Button>
         </div>
@@ -111,17 +119,17 @@ export function PackView({ items }: { items: PackingItemDTO[] }) {
       <div className="space-y-1.5">
         <div className="flex justify-between">
           <span className="eyebrow text-muted">Overall</span>
-          <span className="font-mono text-xs text-muted">
+          <span className="text-muted font-sans text-xs">
             {packed}/{total} packed · {pct}%
           </span>
         </div>
         <Progress value={pct} />
       </div>
 
-      {showAdd && <AddPackingForm groups={groupNames} onAdded={() => setShowAdd(false)} />}
+      {showAdd && <AddPackingModal groups={groupNames} onClose={() => setShowAdd(false)} />}
 
       {groups.length === 0 ? (
-        <p className="rounded-lg border border-border bg-surface p-8 text-center text-muted">
+        <p className="border-border bg-surface text-muted rounded-lg border p-8 text-center">
           Nothing to pack yet — add your first item.
         </p>
       ) : (
@@ -129,14 +137,17 @@ export function PackView({ items }: { items: PackingItemDTO[] }) {
           {groups.map(([group, list]) => {
             const groupPacked = list.filter((i) => i.packed).length;
             return (
-              <section key={group} className="rounded-lg border border-border bg-surface p-6 shadow-card">
+              <section
+                key={group}
+                className="border-border bg-surface shadow-card rounded-lg border p-6"
+              >
                 <div className="mb-2 flex items-center justify-between">
-                  <h2 className="font-display text-lg font-semibold text-ink">{group}</h2>
-                  <span className="font-mono text-[11px] text-muted">
+                  <h2 className="font-heading text-ink text-lg font-semibold">{group}</h2>
+                  <span className="text-muted font-sans text-[11px]">
                     {String(groupPacked).padStart(2, '0')}/{String(list.length).padStart(2, '0')}
                   </span>
                 </div>
-                <ul className="divide-y divide-border">
+                <ul className="divide-border divide-y">
                   {list.map((item) => (
                     <ItemRow
                       key={item.id}
@@ -168,7 +179,10 @@ function ItemRow({
   groups: string[];
   onToggle: (id: string, next: boolean) => void;
   onDelete: (id: string) => void;
-  onEdit: (id: string, patch: { category?: string; label?: string; quantityHint?: string | null }) => void;
+  onEdit: (
+    id: string,
+    patch: { category?: string; label?: string; quantityHint?: string | null; essential?: boolean },
+  ) => void;
 }) {
   const [editing, setEditing] = useState(false);
 
@@ -204,7 +218,7 @@ function ItemRow({
         {item.label}
         {item.quantityHint && <span className="text-muted"> · {item.quantityHint}</span>}
         {item.essential && !item.packed && (
-          <span className="ml-1.5 rounded bg-accent px-1.5 py-0.5 font-mono text-[10px] uppercase tracking-wide text-accent-foreground">
+          <span className="bg-accent text-accent-foreground ml-1.5 rounded px-1.5 py-0.5 font-sans text-[10px] tracking-wide uppercase">
             essential
           </span>
         )}
@@ -237,23 +251,29 @@ function EditRow({
 }: {
   item: PackingItemDTO;
   groups: string[];
-  onSave: (patch: { category: string; label: string; quantityHint: string | null }) => void;
+  onSave: (patch: {
+    category: string;
+    label: string;
+    quantityHint: string | null;
+    essential: boolean;
+  }) => void;
   onCancel: () => void;
 }) {
   const [label, setLabel] = useState(item.label);
   const [quantityHint, setQuantityHint] = useState(item.quantityHint ?? '');
   const [group, setGroup] = useState(groups.includes(item.category) ? item.category : NEW_GROUP);
   const [newGroup, setNewGroup] = useState(groups.includes(item.category) ? '' : item.category);
+  const [essential, setEssential] = useState(item.essential ?? false);
 
   function submit() {
     const category = (group === NEW_GROUP ? newGroup : group).trim();
     const trimmedLabel = label.trim();
     if (!trimmedLabel || !category) return;
-    onSave({ category, label: trimmedLabel, quantityHint: quantityHint.trim() || null });
+    onSave({ category, label: trimmedLabel, quantityHint: quantityHint.trim() || null, essential });
   }
 
   return (
-    <div className="grid gap-2 rounded-md bg-canvas/50 p-3 sm:grid-cols-[1fr_1fr_auto]">
+    <div className="bg-canvas/50 grid gap-2 rounded-md p-3 sm:grid-cols-[1fr_1fr_auto]">
       <Input
         value={label}
         onChange={(e) => setLabel(e.target.value)}
@@ -285,10 +305,20 @@ function EditRow({
           ))}
           <option value={NEW_GROUP}>+ New group…</option>
         </Select>
-        <button type="button" onClick={submit} aria-label="Save" className="text-success hover:opacity-80">
+        <button
+          type="button"
+          onClick={submit}
+          aria-label="Save"
+          className="text-success hover:opacity-80"
+        >
           <Check className="size-5" aria-hidden />
         </button>
-        <button type="button" onClick={onCancel} aria-label="Cancel" className="text-muted hover:text-ink">
+        <button
+          type="button"
+          onClick={onCancel}
+          aria-label="Cancel"
+          className="text-muted hover:text-ink"
+        >
           <X className="size-5" aria-hidden />
         </button>
       </div>
@@ -301,78 +331,102 @@ function EditRow({
           className="sm:col-span-3"
         />
       )}
+      <label className="text-ink flex items-center gap-2 text-sm sm:col-span-3">
+        <input
+          type="checkbox"
+          checked={essential}
+          onChange={(e) => setEssential(e.target.checked)}
+          className="size-4 accent-[var(--vos-color-primary)]"
+        />
+        Essential
+      </label>
     </div>
   );
 }
 
 function Progress({ value }: { value: number }) {
   return (
-    <div className="h-2 w-full overflow-hidden rounded-pill bg-canvas">
-      <div className="h-full rounded-pill bg-success transition-all" style={{ width: `${value}%` }} />
+    <div className="rounded-pill bg-canvas h-2 w-full overflow-hidden">
+      <div
+        className="rounded-pill bg-success h-full transition-all"
+        style={{ width: `${value}%` }}
+      />
     </div>
   );
 }
 
-function AddPackingForm({ groups, onAdded }: { groups: string[]; onAdded: () => void }) {
-  const [state, action, pending] = useActionState<AddPackingState, FormData>(addPackingItem, undefined);
+function AddPackingModal({ groups, onClose }: { groups: string[]; onClose: () => void }) {
+  const [state, action, pending] = useActionState<AddPackingState, FormData>(
+    addPackingItem,
+    undefined,
+  );
   const ref = useRef<HTMLFormElement>(null);
   const [group, setGroup] = useState(groups[0] ?? NEW_GROUP);
 
   useEffect(() => {
     if (state?.ok) {
       ref.current?.reset();
-      onAdded();
+      onClose();
     }
-  }, [state, onAdded]);
+  }, [state, onClose]);
 
   const usingNew = group === NEW_GROUP || groups.length === 0;
 
   return (
-    <form
-      ref={ref}
-      action={action}
-      className="grid gap-3 rounded-lg border border-border bg-surface p-4 sm:grid-cols-3"
-    >
-      <div>
-        <Label htmlFor="pack-group">Group</Label>
-        {groups.length > 0 ? (
-          <>
-            <Select
-              id="pack-group"
-              name={usingNew ? undefined : 'category'}
-              value={group}
-              onChange={(e) => setGroup(e.target.value)}
-              className="h-10 w-full"
-            >
-              {groups.map((g) => (
-                <option key={g} value={g}>
-                  {g}
-                </option>
-              ))}
-              <option value={NEW_GROUP}>+ New group…</option>
-            </Select>
-            {usingNew && (
-              <Input name="category" required placeholder="New group name" className="mt-2" />
+    <Modal title="Add item" eyebrow="New item" onClose={onClose}>
+      <form ref={ref} action={action} className="space-y-3 p-5">
+        <div>
+          <Label htmlFor="pack-label">Item</Label>
+          <Input id="pack-label" name="label" required autoFocus placeholder="Water shoes" />
+        </div>
+        <div className="grid grid-cols-2 gap-3">
+          <div>
+            <Label htmlFor="pack-group">Group</Label>
+            {groups.length > 0 ? (
+              <Select
+                id="pack-group"
+                name={usingNew ? undefined : 'category'}
+                value={group}
+                onChange={(e) => setGroup(e.target.value)}
+                className="h-10 w-full"
+              >
+                {groups.map((g) => (
+                  <option key={g} value={g}>
+                    {g}
+                  </option>
+                ))}
+                <option value={NEW_GROUP}>+ New group…</option>
+              </Select>
+            ) : (
+              <Input id="pack-group" name="category" required placeholder="Outdoor & hiking" />
             )}
-          </>
-        ) : (
-          <Input id="pack-group" name="category" required placeholder="Outdoor & hiking" />
+          </div>
+          <div>
+            <Label htmlFor="pack-qty">Quantity hint</Label>
+            <Input id="pack-qty" name="quantityHint" placeholder="2 pairs" />
+          </div>
+        </div>
+        {groups.length > 0 && usingNew && (
+          <Input name="category" required placeholder="New group name" />
         )}
-      </div>
-      <div>
-        <Label htmlFor="pack-label">Item</Label>
-        <Input id="pack-label" name="label" required placeholder="Water shoes" />
-      </div>
-      <div>
-        <Label htmlFor="pack-qty">Quantity hint</Label>
-        <Input id="pack-qty" name="quantityHint" placeholder="2 pairs" />
-      </div>
-      {state?.error && <p className="text-sm text-danger sm:col-span-3">{state.error}</p>}
-      <div className="flex justify-end sm:col-span-3">
-        <Button type="submit" disabled={pending}>
-          {pending ? 'Adding…' : 'Add item'}
-        </Button>
-      </div>
-    </form>
+        <label className="text-ink flex items-center gap-2 text-sm">
+          <input
+            type="checkbox"
+            name="essential"
+            className="size-4 accent-[var(--vos-color-primary)]"
+          />
+          Mark as essential
+        </label>
+        {state?.error && <p className="text-danger text-sm">{state.error}</p>}
+        <div className="border-border flex justify-end gap-2 border-t pt-4">
+          <Button type="button" variant="secondary" onClick={onClose}>
+            Cancel
+          </Button>
+          <Button type="submit" disabled={pending}>
+            <Plus className="size-4" aria-hidden /> {pending ? 'Adding…' : 'Add item'}
+          </Button>
+        </div>
+      </form>
+    </Modal>
   );
 }

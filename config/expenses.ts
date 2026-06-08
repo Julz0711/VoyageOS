@@ -39,10 +39,28 @@ export const currencies = ['EUR', 'USD', 'GBP', 'CHF', 'NOK', 'SEK', 'DKK', 'JPY
 
 export const DEFAULT_CURRENCY = 'EUR';
 
+/**
+ * Each currency's "home" locale, so formatting is DETERMINISTIC — the same on the server and
+ * the client regardless of the browser's locale. Using the ambient locale (`undefined`) causes
+ * React hydration mismatches (e.g. server `€150.00` vs. a German browser's `150,00 €`).
+ */
+const CURRENCY_LOCALE: Record<string, string> = {
+  EUR: 'de-DE',
+  USD: 'en-US',
+  GBP: 'en-GB',
+  CHF: 'de-CH',
+  NOK: 'nb-NO',
+  SEK: 'sv-SE',
+  DKK: 'da-DK',
+  JPY: 'ja-JP',
+  CAD: 'en-CA',
+  AUD: 'en-AU',
+};
+
 /** Formats an amount in the given currency, falling back gracefully for odd codes. */
 export function formatMoney(amount: number, currency = DEFAULT_CURRENCY): string {
   try {
-    return new Intl.NumberFormat(undefined, {
+    return new Intl.NumberFormat(CURRENCY_LOCALE[currency] ?? 'en-US', {
       style: 'currency',
       currency,
       maximumFractionDigits: 2,

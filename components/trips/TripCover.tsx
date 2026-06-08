@@ -37,12 +37,12 @@ export function TripCover({
       };
 
   return (
-    <div className={`relative overflow-hidden text-primary-foreground ${className}`} style={style}>
+    <div className={`text-primary-foreground relative overflow-hidden ${className}`} style={style}>
       {/* contour texture (gradient cover only) */}
       {!coverImage && (
         <svg
           aria-hidden
-          className="absolute -right-10 -top-16 h-64 w-64 text-primary-foreground"
+          className="text-primary-foreground absolute -top-16 -right-10 h-64 w-64"
           viewBox="-160 -160 320 320"
           style={{ opacity: 0.16 }}
         >
@@ -64,17 +64,17 @@ export function TripCover({
 
       <div className="relative flex h-full flex-col justify-between p-4">
         <div className="flex items-start justify-between gap-2">
-          <span className="inline-flex items-center gap-1 font-mono text-[11px] text-primary-foreground/85">
+          <span className="text-primary-foreground/85 inline-flex items-center gap-1 font-sans text-[11px]">
             <MapPin className="size-3" aria-hidden />
             {coordLabel(lat, lng)}
           </span>
           {badge && (
-            <span className="rounded-pill bg-primary-foreground/15 px-2 py-0.5 font-mono text-[10px] backdrop-blur-sm">
+            <span className="rounded-pill bg-primary-foreground/15 px-2 py-0.5 font-sans text-[10px] backdrop-blur-sm">
               {badge}
             </span>
           )}
         </div>
-        <span className="font-display text-lg font-semibold leading-tight">{destination}</span>
+        <span className="font-heading text-lg leading-tight font-semibold">{destination}</span>
       </div>
     </div>
   );

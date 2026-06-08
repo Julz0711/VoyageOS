@@ -51,6 +51,20 @@ export function wmoInfo(code: number): WmoInfo {
   return table[code] ?? { label: 'Unknown', icon: Cloud };
 }
 
+/**
+ * Accent color per weather kind — used to tint the forecast day card on hover
+ * (sun → amber, rain → blue, snow → icy, storm → violet, cloudy/fog → slate).
+ */
+export function wmoColor(code: number): string {
+  if (code === 0 || code === 1) return '#f5a623'; // clear / mainly clear → sun amber
+  if (code === 2) return '#38bdf8'; // partly cloudy → sky blue
+  if (code === 3 || code === 45 || code === 48) return '#94a3b8'; // overcast / fog → slate
+  if ((code >= 71 && code <= 77) || code === 85 || code === 86) return '#7dd3fc'; // snow → icy blue
+  if (code >= 95) return '#8b5cf6'; // thunderstorm → violet
+  if (code >= 51) return '#3b82f6'; // drizzle / rain / showers → blue
+  return '#94a3b8'; // unknown → slate
+}
+
 /** Precipitation-bearing codes (drizzle and worse). Used for wet/fine signals. */
 export function isWetCode(code: number): boolean {
   return code >= 51;

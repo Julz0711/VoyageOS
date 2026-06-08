@@ -1,6 +1,14 @@
 'use client';
 
-import { useActionState, useEffect, useMemo, useOptimistic, useRef, useState, useTransition } from 'react';
+import {
+  useActionState,
+  useEffect,
+  useMemo,
+  useOptimistic,
+  useRef,
+  useState,
+  useTransition,
+} from 'react';
 import { Plus, Trash2, Wallet } from 'lucide-react';
 import type { ExpenseDTO, TripDTO } from '@/lib/dto';
 import {
@@ -21,6 +29,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Input, Label } from '@/components/ui/input';
 import { Select } from '@/components/ui/select';
+import { Modal } from '@/components/ui/modal';
 
 function todayKey(): string {
   return new Date().toISOString().slice(0, 10);
@@ -56,25 +65,27 @@ export function BudgetView({ trip, expenses }: { trip: TripDTO; expenses: Expens
     <div className="space-y-7">
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
-          <p className="eyebrow mb-1 text-muted">The money map</p>
-          <h1 className="font-display text-3xl font-semibold text-ink">Budget</h1>
+          <p className="eyebrow text-muted mb-1">The money map</p>
+          <h1 className="font-display text-ink text-3xl font-semibold">Budget</h1>
         </div>
-        <Button variant={showAdd ? 'secondary' : 'primary'} onClick={() => setShowAdd((v) => !v)}>
+        <Button onClick={() => setShowAdd(true)}>
           <Plus className="size-4" aria-hidden /> Add expense
         </Button>
       </div>
 
       {/* Summary */}
-      <div className="rounded-lg border border-border bg-surface p-6 shadow-card">
+      <div className="border-border bg-surface shadow-card rounded-lg border p-6">
         <div className="flex flex-wrap items-end justify-between gap-4">
           <div>
             <p className="eyebrow text-muted">Spent</p>
-            <p className="font-display text-3xl font-semibold text-ink">{formatMoney(total, currency)}</p>
+            <p className="font-display text-ink text-3xl font-semibold">
+              {formatMoney(total, currency)}
+            </p>
           </div>
           {budget != null && (
             <div className="text-right">
               <p className="eyebrow text-muted">{over ? 'Over budget' : 'Remaining'}</p>
-              <p className={`font-mono text-lg ${over ? 'text-danger' : 'text-ink'}`}>
+              <p className={`font-sans text-lg ${over ? 'text-danger' : 'text-ink'}`}>
                 {formatMoney(Math.abs(budget - total), currency)}
               </p>
             </div>
@@ -82,9 +93,9 @@ export function BudgetView({ trip, expenses }: { trip: TripDTO; expenses: Expens
         </div>
 
         {budget != null && (
-          <div className="mt-4 h-2 w-full overflow-hidden rounded-pill bg-canvas">
+          <div className="rounded-pill bg-canvas mt-4 h-2 w-full overflow-hidden">
             <div
-              className={`h-full rounded-pill transition-all ${over ? 'bg-danger' : 'bg-success'}`}
+              className={`rounded-pill h-full transition-all ${over ? 'bg-danger' : 'bg-success'}`}
               style={{ width: `${pct}%` }}
             />
           </div>
@@ -95,24 +106,24 @@ export function BudgetView({ trip, expenses }: { trip: TripDTO; expenses: Expens
 
       {/* Breakdown */}
       {byCategory.length > 0 && (
-        <div className="rounded-lg border border-border bg-surface p-6 shadow-card">
-          <p className="eyebrow mb-3 text-muted">By category</p>
+        <div className="border-border bg-surface shadow-card rounded-lg border p-6">
+          <p className="eyebrow text-muted mb-3">By category</p>
           <div className="space-y-2.5">
             {byCategory.map(([cat, amount]) => {
               const def = getExpenseCategory(cat);
               const share = total > 0 ? Math.round((amount / total) * 100) : 0;
               return (
                 <div key={cat} className="flex items-center gap-3">
-                  <span className="flex w-28 shrink-0 items-center gap-1.5 text-sm text-ink">
-                    <def.icon className="size-3.5 text-muted" aria-hidden /> {def.label}
+                  <span className="text-ink flex w-28 shrink-0 items-center gap-1.5 text-sm">
+                    <def.icon className="text-muted size-3.5" aria-hidden /> {def.label}
                   </span>
-                  <span className="h-2 flex-1 overflow-hidden rounded-pill bg-canvas">
+                  <span className="rounded-pill bg-canvas h-2 flex-1 overflow-hidden">
                     <span
-                      className="block h-full rounded-pill"
+                      className="rounded-pill block h-full"
                       style={{ width: `${share}%`, backgroundColor: def.color }}
                     />
                   </span>
-                  <span className="w-24 shrink-0 text-right font-mono text-xs text-muted">
+                  <span className="text-muted w-24 shrink-0 text-right font-sans text-xs">
                     {formatMoney(amount, currency)}
                   </span>
                 </div>
@@ -122,37 +133,42 @@ export function BudgetView({ trip, expenses }: { trip: TripDTO; expenses: Expens
         </div>
       )}
 
-      {showAdd && <ExpenseForm currency={currency} onDone={() => setShowAdd(false)} />}
+      {showAdd && <ExpenseModal currency={currency} onClose={() => setShowAdd(false)} />}
 
       {/* List */}
       {optimistic.length === 0 ? (
-        <p className="rounded-lg border border-dashed border-border bg-surface/50 p-10 text-center text-muted">
+        <p className="border-border bg-surface/50 text-muted rounded-lg border border-dashed p-10 text-center">
           No expenses yet — log your first one.
         </p>
       ) : (
-        <ul className="divide-y divide-border rounded-lg border border-border bg-surface">
+        <ul className="divide-border border-border bg-surface divide-y rounded-lg border">
           {optimistic.map((e) => {
             const def = getExpenseCategory(e.category);
             return (
               <li key={e.id} className="flex items-center gap-3 px-5 py-3">
                 <span
                   className="flex size-8 shrink-0 items-center justify-center rounded-full"
-                  style={{ backgroundColor: `color-mix(in srgb, ${def.color} 16%, transparent)`, color: def.color }}
+                  style={{
+                    backgroundColor: `color-mix(in srgb, ${def.color} 16%, transparent)`,
+                    color: def.color,
+                  }}
                 >
                   <def.icon className="size-4" aria-hidden />
                 </span>
                 <span className="min-w-0 flex-1">
-                  <span className="block truncate text-sm font-medium text-ink">{e.label}</span>
-                  <span className="font-mono text-[11px] text-muted">
+                  <span className="text-ink block truncate text-sm font-medium">{e.label}</span>
+                  <span className="text-muted font-sans text-[11px]">
                     {def.label} · {e.date}
                   </span>
                 </span>
-                <span className="shrink-0 font-mono text-sm text-ink">{formatMoney(e.amount, currency)}</span>
+                <span className="text-ink shrink-0 font-sans text-sm">
+                  {formatMoney(e.amount, currency)}
+                </span>
                 <button
                   type="button"
                   onClick={() => onDelete(e.id)}
                   aria-label="Delete expense"
-                  className="shrink-0 p-1 text-muted/60 transition-colors hover:text-danger"
+                  className="text-muted/60 hover:text-danger shrink-0 p-1 transition-colors"
                 >
                   <Trash2 className="size-4" aria-hidden />
                 </button>
@@ -166,10 +182,16 @@ export function BudgetView({ trip, expenses }: { trip: TripDTO; expenses: Expens
 }
 
 function BudgetForm({ budget, currency }: { budget?: number; currency: string }) {
-  const [state, action, pending] = useActionState<SetBudgetState, FormData>(setTripBudget, undefined);
+  const [state, action, pending] = useActionState<SetBudgetState, FormData>(
+    setTripBudget,
+    undefined,
+  );
 
   return (
-    <form action={action} className="mt-5 flex flex-wrap items-end gap-3 border-t border-border pt-4">
+    <form
+      action={action}
+      className="border-border mt-5 flex flex-wrap items-end gap-3 border-t pt-4"
+    >
       <div>
         <Label htmlFor="currency">Currency</Label>
         <Select id="currency" name="currency" defaultValue={currency}>
@@ -196,52 +218,67 @@ function BudgetForm({ budget, currency }: { budget?: number; currency: string })
       <Button type="submit" variant="secondary" size="sm" disabled={pending}>
         <Wallet className="size-4" aria-hidden /> {pending ? 'Saving…' : 'Save'}
       </Button>
-      {state?.error && <p className="w-full text-sm text-danger">{state.error}</p>}
+      {state?.error && <p className="text-danger w-full text-sm">{state.error}</p>}
     </form>
   );
 }
 
-function ExpenseForm({ currency, onDone }: { currency: string; onDone: () => void }) {
+function ExpenseModal({ currency, onClose }: { currency: string; onClose: () => void }) {
   const [state, action, pending] = useActionState<AddExpenseState, FormData>(addExpense, undefined);
   const ref = useRef<HTMLFormElement>(null);
 
   useEffect(() => {
     if (state?.ok) {
       ref.current?.reset();
-      onDone();
+      onClose();
     }
-  }, [state, onDone]);
+  }, [state, onClose]);
 
   return (
-    <form ref={ref} action={action} className="grid gap-3 rounded-lg border border-border bg-surface p-5 sm:grid-cols-2">
-      <div>
-        <Label htmlFor="label">What for</Label>
-        <Input id="label" name="label" required placeholder="Dinner at …" />
-      </div>
-      <div>
-        <Label htmlFor="amount">Amount ({currency})</Label>
-        <Input id="amount" name="amount" type="number" step="any" min="0" required placeholder="0.00" />
-      </div>
-      <div>
-        <Label htmlFor="category">Category</Label>
-        <Select id="category" name="category" defaultValue="food" className="w-full">
-          {expenseCategoryIds.map((id) => (
-            <option key={id} value={id}>
-              {expenseCategories[id].label}
-            </option>
-          ))}
-        </Select>
-      </div>
-      <div>
-        <Label htmlFor="date">Date</Label>
-        <Input id="date" name="date" type="date" required defaultValue={todayKey()} />
-      </div>
-      {state?.error && <p className="text-sm text-danger sm:col-span-2">{state.error}</p>}
-      <div className="flex justify-end sm:col-span-2">
-        <Button type="submit" disabled={pending}>
-          {pending ? 'Adding…' : 'Add expense'}
-        </Button>
-      </div>
-    </form>
+    <Modal title="Add expense" eyebrow="New entry" onClose={onClose}>
+      <form ref={ref} action={action} className="space-y-3 p-5">
+        <div>
+          <Label htmlFor="label">What for</Label>
+          <Input id="label" name="label" required autoFocus placeholder="Dinner at …" />
+        </div>
+        <div className="grid grid-cols-2 gap-3">
+          <div>
+            <Label htmlFor="amount">Amount ({currency})</Label>
+            <Input
+              id="amount"
+              name="amount"
+              type="number"
+              step="any"
+              min="0"
+              required
+              placeholder="0.00"
+            />
+          </div>
+          <div>
+            <Label htmlFor="date">Date</Label>
+            <Input id="date" name="date" type="date" required defaultValue={todayKey()} />
+          </div>
+        </div>
+        <div>
+          <Label htmlFor="category">Category</Label>
+          <Select id="category" name="category" defaultValue="food" className="w-full">
+            {expenseCategoryIds.map((id) => (
+              <option key={id} value={id}>
+                {expenseCategories[id].label}
+              </option>
+            ))}
+          </Select>
+        </div>
+        {state?.error && <p className="text-danger text-sm">{state.error}</p>}
+        <div className="border-border flex justify-end gap-2 border-t pt-4">
+          <Button type="button" variant="secondary" onClick={onClose}>
+            Cancel
+          </Button>
+          <Button type="submit" disabled={pending}>
+            <Plus className="size-4" aria-hidden /> {pending ? 'Adding…' : 'Add expense'}
+          </Button>
+        </div>
+      </form>
+    </Modal>
   );
 }
