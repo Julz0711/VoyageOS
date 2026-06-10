@@ -176,7 +176,7 @@ function Stat({ label, value }: { label: string; value: string }) {
   return (
     <div>
       <span className="text-muted/70 block text-[10px] tracking-wider">{label}</span>
-      <span className="text-ink text-sm font-medium">{value}</span>
+      <span className="num text-ink text-sm font-medium">{value}</span>
     </div>
   );
 }

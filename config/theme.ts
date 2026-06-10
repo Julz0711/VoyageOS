@@ -48,6 +48,7 @@ export const theme = {
     display: 'var(--font-syne), system-ui, sans-serif', // big hero headings / titles
     heading: 'var(--font-sora), system-ui, sans-serif', // smaller sub-headings
     sans: 'var(--font-dm-sans), system-ui, sans-serif', // body / UI
+    numeric: 'var(--font-space-grotesk), system-ui, sans-serif', // numbers (money, stats, counts)
   },
   shadow: {
     card: '0 1px 2px rgba(20,22,24,.04), 0 6px 18px rgba(20,22,24,.05)',

@@ -69,3 +69,69 @@ export function formatMoney(amount: number, currency = DEFAULT_CURRENCY): string
     return `${amount.toFixed(2)} ${currency}`;
   }
 }
+
+/**
+ * Spend phases — *when* money is spent relative to the trip window. Each expense carries a phase
+ * (auto-derived from its date vs. the trip dates, but overridable) so you can see and budget for
+ * planning costs, on-the-ground spend, and after-the-fact settling separately.
+ */
+export type ExpensePhase = 'pre' | 'during' | 'post';
+
+export interface ExpensePhaseDef {
+  id: ExpensePhase;
+  /** Full label, e.g. for headings. */
+  label: string;
+  /** Compact label for chips/cards. */
+  short: string;
+  /** One-line hint of what belongs here. */
+  hint: string;
+  /** Theme color token. */
+  color: string;
+}
+
+export const expensePhases: Record<ExpensePhase, ExpensePhaseDef> = {
+  pre: {
+    id: 'pre',
+    label: 'Before the trip',
+    short: 'Before',
+    hint: 'Booked & bought ahead — flights, stays, gear',
+    color: 'var(--vos-color-map-culture)', // violet
+  },
+  during: {
+    id: 'during',
+    label: 'During the trip',
+    short: 'During',
+    hint: 'On the ground — food, transport, activities',
+    color: 'var(--vos-color-map-swim)', // teal
+  },
+  post: {
+    id: 'post',
+    label: 'After the trip',
+    short: 'After',
+    hint: 'Settled afterwards — split bills, late charges',
+    color: 'var(--vos-color-map-food)', // orange
+  },
+};
+
+export const expensePhaseIds = Object.keys(expensePhases) as ExpensePhase[];
+
+export function getExpensePhase(id: string): ExpensePhaseDef {
+  return expensePhases[id as ExpensePhase] ?? expensePhases.during;
+}
+
+/** Just the date part (YYYY-MM-DD) of an ISO string or Date, for lexicographic comparison. */
+function dayKey(value: string | Date): string {
+  return (typeof value === 'string' ? value : value.toISOString()).slice(0, 10);
+}
+
+/** The natural phase for an expense date relative to the trip window. */
+export function phaseForDate(
+  date: string | Date,
+  tripStart: string | Date,
+  tripEnd: string | Date,
+): ExpensePhase {
+  const d = dayKey(date);
+  if (d < dayKey(tripStart)) return 'pre';
+  if (d > dayKey(tripEnd)) return 'post';
+  return 'during';
+}

@@ -6,6 +6,7 @@ import { getPackingItems } from '@/lib/packing/queries';
 import { getExpenses } from '@/lib/budget/queries';
 import { getChecklist } from '@/lib/checklist/queries';
 import { getDocuments } from '@/lib/documents/queries';
+import { phaseForDate, type ExpensePhase } from '@/config/expenses';
 import type { DocumentKind } from '@/models/Document';
 
 /** Pre-shaped, minimal data for the trip summary cards (see components/trips/TripSummary). */
@@ -26,7 +27,7 @@ export interface TripSummary {
     preview: { id: string; date: string; title: string; category?: string }[];
   };
   packing: { total: number; packed: number; essentialsLeft: number };
-  budget: { total: number; byCategory: { category: string; amount: number }[] };
+  budget: { total: number; byPhase: Record<ExpensePhase, number> };
   checklist: {
     total: number;
     done: number;
@@ -42,7 +43,12 @@ export interface TripSummary {
 }
 
 /** Aggregates every section's data into one compact payload for the trip summary page. */
-export async function getTripSummary(userId: string, tripId: string): Promise<TripSummary> {
+export async function getTripSummary(
+  userId: string,
+  tripId: string,
+  tripStart: string,
+  tripEnd: string,
+): Promise<TripSummary> {
   const [items, roadtrips, planEntries, packing, expenses, checklist, docs] = await Promise.all([
     getExploreItems(userId, tripId),
     getRoadtrips(userId, tripId),
@@ -56,8 +62,12 @@ export async function getTripSummary(userId: string, tripId: string): Promise<Tr
   const favorites = items.filter((i) => i.isFavorite);
   const exploreSource = favorites.length > 0 ? favorites : items;
 
-  const byCategory = new Map<string, number>();
-  for (const e of expenses) byCategory.set(e.category, (byCategory.get(e.category) ?? 0) + e.amount);
+  // Spend grouped by phase (stored phase, or derived from the date for older expenses).
+  const byPhase: Record<ExpensePhase, number> = { pre: 0, during: 0, post: 0 };
+  for (const e of expenses) {
+    const phase = (e.phase as ExpensePhase) || phaseForDate(e.date, tripStart, tripEnd);
+    byPhase[phase] += e.amount;
+  }
 
   const open = checklist.filter((c) => !c.done);
 
@@ -97,10 +107,7 @@ export async function getTripSummary(userId: string, tripId: string): Promise<Tr
     },
     budget: {
       total: expenses.reduce((s, e) => s + e.amount, 0),
-      byCategory: [...byCategory.entries()]
-        .sort((a, b) => b[1] - a[1])
-        .slice(0, 3)
-        .map(([category, amount]) => ({ category, amount })),
+      byPhase,
     },
     checklist: {
       total: checklist.length,

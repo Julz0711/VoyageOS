@@ -14,6 +14,7 @@ export interface TripDTO {
   categories: string[];
   currency?: string;
   budget?: number;
+  phaseBudgets?: { pre?: number; during?: number; post?: number };
   shareToken?: string;
   archived: boolean;
 }
@@ -25,6 +26,7 @@ export interface ExpenseDTO {
   category: string;
   label: string;
   date: string; // YYYY-MM-DD
+  phase: string; // 'pre' | 'during' | 'post'
 }
 
 export interface ChecklistItemDTO {

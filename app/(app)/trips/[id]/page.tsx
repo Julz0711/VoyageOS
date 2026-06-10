@@ -25,7 +25,7 @@ export default async function TripSummaryPage({ params }: { params: Promise<{ id
   const trip = await getTripById(userId, id);
   if (!trip) notFound();
 
-  const summary = await getTripSummary(userId, trip.id);
+  const summary = await getTripSummary(userId, trip.id, trip.dateStart, trip.dateEnd);
   const countdown = tripCountdown(trip.dateStart, trip.dateEnd);
   const dayCount = tripDayCount(trip.dateStart, trip.dateEnd);
 
@@ -88,6 +88,7 @@ export default async function TripSummaryPage({ params }: { params: Promise<{ id
         base={{ lat: trip.baseLocation.lat, lng: trip.baseLocation.lng }}
         currency={trip.currency ?? DEFAULT_CURRENCY}
         budget={trip.budget}
+        phaseBudgets={trip.phaseBudgets}
       />
     </div>
   );

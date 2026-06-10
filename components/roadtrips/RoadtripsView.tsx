@@ -1,25 +1,18 @@
 'use client';
 
 import { useMemo, useOptimistic, useState, useTransition } from 'react';
-import {
-  Plus,
-  Trash2,
-  ArrowUp,
-  ArrowDown,
-  X,
-  Route,
-  Navigation,
-  Search,
-  Pencil,
-} from 'lucide-react';
+import { Plus, ArrowUp, ArrowDown, X, Route, Navigation, Search } from 'lucide-react';
 import type { RoadtripDTO } from '@/lib/dto';
 import { createRoadtrip, updateRoadtrip, deleteRoadtrip } from '@/lib/roadtrips/actions';
 import { getCategory } from '@/config/categories';
 import { Button } from '@/components/ui/button';
 import { Input, Label } from '@/components/ui/input';
 import { Modal } from '@/components/ui/modal';
+import { ModalFooter } from '@/components/ui/modal-footer';
+import { MiniMap } from '@/components/trips/MiniMap';
+import { cn } from '@/lib/utils';
 
-type Candidate = { id: string; title: string; category: string };
+type Candidate = { id: string; title: string; category: string; lat?: number; lng?: number };
 type Base = { lat: number; lng: number; label: string };
 
 /** Google Maps route that starts and ends at the cabin (base) for a clean round-trip loop. */
@@ -73,7 +66,9 @@ export function RoadtripsView({
         <Builder
           key={editor.roadtrip?.id ?? 'new'}
           candidates={candidates}
+          base={base}
           editing={editor.roadtrip}
+          onDelete={onDelete}
           onDone={() => setEditor(null)}
         />
       )}
@@ -86,64 +81,72 @@ export function RoadtripsView({
         <div className="space-y-4">
           {optimistic.map((rt) => {
             const href = directionsHref(base, rt.stops);
+            const located = rt.stops
+              .filter((s) => s.lat != null && s.lng != null)
+              .map((s) => ({ id: s.id, lat: s.lat!, lng: s.lng!, category: s.category }));
             return (
               <section
                 key={rt.id}
-                className="border-border bg-surface shadow-card rounded-lg border p-6"
+                role="button"
+                tabIndex={0}
+                onClick={() => setEditor({ roadtrip: rt })}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    setEditor({ roadtrip: rt });
+                  }
+                }}
+                className={cn(
+                  'border-border bg-surface shadow-card cursor-pointer rounded-lg border p-6 transition-all duration-200',
+                  'hover:border-ink/20 hover:shadow-lift focus-visible:ring-primary/40 focus-visible:outline-none focus-visible:ring-2',
+                )}
               >
-                <div className="mb-3 flex items-start justify-between gap-3">
+                <div className={cn('grid gap-5', href && 'sm:grid-cols-[1.85fr_1fr]')}>
                   <div className="min-w-0">
                     <h2 className="font-heading text-ink flex items-center gap-2 text-lg font-semibold">
-                      <Route className="text-muted size-4" aria-hidden /> {rt.name}
+                      <Route className="text-muted size-4 shrink-0" aria-hidden /> {rt.name}
                     </h2>
                     {rt.notes && <p className="text-muted mt-0.5 text-sm">{rt.notes}</p>}
+                    <p className="text-muted mt-2 mb-1.5 font-sans text-[11px]">
+                      Round trip from {base.label}
+                    </p>
+                    <ol className="space-y-1.5">
+                      {rt.stops.map((s, i) => {
+                        const Icon = getCategory(s.category).icon;
+                        return (
+                          <li key={s.id} className="text-ink flex items-center gap-2.5 text-sm">
+                            <span className="bg-canvas text-muted num flex size-5 shrink-0 items-center justify-center rounded-full text-[10px]">
+                              {i + 1}
+                            </span>
+                            <Icon className="text-muted size-3.5 shrink-0" aria-hidden />
+                            <span className="truncate">{s.title}</span>
+                            {s.areaLabel && (
+                              <span className="text-muted truncate font-sans text-[11px]">
+                                · {s.areaLabel}
+                              </span>
+                            )}
+                          </li>
+                        );
+                      })}
+                    </ol>
                   </div>
-                  <div className="flex shrink-0 items-center gap-1">
-                    {href && (
-                      <a
-                        href={href}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        title="Open route in Google Maps"
-                      >
-                        <Button variant="ghost" size="icon">
-                          <Navigation className="size-4" aria-hidden />
-                        </Button>
-                      </a>
-                    )}
-                    <button
-                      type="button"
-                      onClick={() => setEditor({ roadtrip: rt })}
-                      aria-label="Edit roadtrip"
-                      className="text-muted/60 hover:text-ink p-1.5 transition-colors"
+
+                  {href && (
+                    <a
+                      href={href}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      title="Open route in Google Maps"
+                      onClick={(e) => e.stopPropagation()}
+                      className="border-border bg-canvas relative block h-44 overflow-hidden rounded-md border transition-shadow hover:shadow-card sm:h-auto sm:min-h-[12rem]"
                     >
-                      <Pencil className="size-4" aria-hidden />
-                    </button>
-                    <DeleteButton onConfirm={() => onDelete(rt.id)} />
-                  </div>
+                      <MiniMap base={base} points={located} routeLine />
+                      <span className="bg-surface/90 text-ink absolute top-2 right-2 flex items-center gap-1 rounded-md px-1.5 py-1 font-sans text-[10px] shadow-sm backdrop-blur">
+                        <Navigation className="size-3" aria-hidden /> Maps
+                      </span>
+                    </a>
+                  )}
                 </div>
-                <p className="text-muted mb-1.5 font-sans text-[11px]">
-                  Round trip from {base.label}
-                </p>
-                <ol className="space-y-1.5">
-                  {rt.stops.map((s, i) => {
-                    const Icon = getCategory(s.category).icon;
-                    return (
-                      <li key={s.id} className="text-ink flex items-center gap-2.5 text-sm">
-                        <span className="bg-canvas text-muted flex size-5 shrink-0 items-center justify-center rounded-full font-sans text-[10px]">
-                          {i + 1}
-                        </span>
-                        <Icon className="text-muted size-3.5 shrink-0" aria-hidden />
-                        <span className="truncate">{s.title}</span>
-                        {s.areaLabel && (
-                          <span className="text-muted truncate font-sans text-[11px]">
-                            · {s.areaLabel}
-                          </span>
-                        )}
-                      </li>
-                    );
-                  })}
-                </ol>
               </section>
             );
           })}
@@ -155,11 +158,15 @@ export function RoadtripsView({
 
 function Builder({
   candidates,
+  base,
   editing,
+  onDelete,
   onDone,
 }: {
   candidates: Candidate[];
+  base: Base;
   editing?: RoadtripDTO;
+  onDelete: (id: string) => void;
   onDone: () => void;
 }) {
   const [, startTransition] = useTransition();
@@ -181,6 +188,16 @@ function Builder({
           !selected.includes(c.id) && c.title.toLowerCase().includes(query.trim().toLowerCase()),
       ),
     [candidates, selected, query],
+  );
+  // Located stops in route order — for the live map preview (memoized so it only rebuilds when
+  // the route changes, not on every keystroke).
+  const routePoints = useMemo(
+    () =>
+      selected
+        .map((id) => byId.get(id))
+        .filter((c): c is Candidate => !!c && c.lat != null && c.lng != null)
+        .map((c) => ({ id: c.id, lat: c.lat!, lng: c.lng!, category: c.category })),
+    [selected, byId],
   );
 
   function add(id: string) {
@@ -243,6 +260,12 @@ function Builder({
             />
           </div>
         </div>
+
+        {routePoints.length > 0 && (
+          <div className="border-border bg-canvas h-44 overflow-hidden rounded-md border">
+            <MiniMap base={base} points={routePoints} routeLine />
+          </div>
+        )}
 
         <div className="grid gap-4 md:grid-cols-2">
           {/* Route (selected, ordered) */}
@@ -340,41 +363,23 @@ function Builder({
         </div>
 
         {error && <p className="text-danger text-sm">{error}</p>}
-        <div className="border-border flex justify-end gap-2 border-t pt-4">
-          <Button variant="secondary" onClick={onDone}>
-            Cancel
-          </Button>
+        <ModalFooter
+          onDelete={
+            editing
+              ? () => {
+                  onDelete(editing.id);
+                  onDone();
+                }
+              : undefined
+          }
+          onCancel={onDone}
+          confirmText="Delete this roadtrip?"
+        >
           <Button onClick={save} disabled={saving}>
             {saving ? 'Saving…' : editing ? 'Save changes' : 'Save roadtrip'}
           </Button>
-        </div>
+        </ModalFooter>
       </div>
     </Modal>
-  );
-}
-
-function DeleteButton({ onConfirm }: { onConfirm: () => void }) {
-  const [confirming, setConfirming] = useState(false);
-  if (confirming) {
-    return (
-      <span className="flex items-center gap-1">
-        <Button variant="danger" size="sm" onClick={onConfirm}>
-          Delete
-        </Button>
-        <Button variant="ghost" size="sm" onClick={() => setConfirming(false)}>
-          Cancel
-        </Button>
-      </span>
-    );
-  }
-  return (
-    <button
-      type="button"
-      onClick={() => setConfirming(true)}
-      aria-label="Delete roadtrip"
-      className="text-muted/60 hover:text-danger p-1.5"
-    >
-      <Trash2 className="size-4" aria-hidden />
-    </button>
   );
 }

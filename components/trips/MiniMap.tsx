@@ -29,16 +29,33 @@ function dot(color: string, size: number, ring = false): HTMLDivElement {
   return el;
 }
 
+/** A numbered pin for ordered route stops. */
+function numberedDot(color: string, n: number): HTMLDivElement {
+  const el = dot(color, 20);
+  el.style.display = 'flex';
+  el.style.alignItems = 'center';
+  el.style.justifyContent = 'center';
+  el.style.color = 'white';
+  el.style.fontSize = '11px';
+  el.style.fontWeight = '700';
+  el.style.fontFamily = 'var(--vos-font-numeric)';
+  el.textContent = String(n);
+  return el;
+}
+
 /**
- * A small, non-interactive map preview for the trip summary. Shows the base + located
- * places, auto-fit to bounds. Interactions are disabled — the card links to the full map.
+ * A small, non-interactive map preview. Shows the base + located places, auto-fit to bounds.
+ * With `routeLine`, the points are treated as an ordered route — numbered, with a dashed loop
+ * base → stops → base (used for road-trip previews).
  */
 export function MiniMap({
   base,
   points,
+  routeLine = false,
 }: {
   base: { lat: number; lng: number };
   points: { id: string; lat: number; lng: number; category: string }[];
+  routeLine?: boolean;
 }) {
   const containerRef = useRef<HTMLDivElement>(null);
 
@@ -64,9 +81,44 @@ export function MiniMap({
         .setLngLat([base.lng, base.lat])
         .addTo(map);
 
-      for (const p of points) {
-        const color = mapGroups[getCategory(p.category).mapGroup].color;
-        new maplibregl.Marker({ element: dot(color, 11) }).setLngLat([p.lng, p.lat]).addTo(map);
+      points.forEach((p, i) => {
+        const el = routeLine
+          ? numberedDot('var(--vos-color-accent2)', i + 1)
+          : dot(mapGroups[getCategory(p.category).mapGroup].color, 11);
+        new maplibregl.Marker({ element: el }).setLngLat([p.lng, p.lat]).addTo(map!);
+      });
+
+      // Dashed loop base → stops → base, drawn once the style is ready.
+      if (routeLine && points.length > 0) {
+        const coords = [
+          [base.lng, base.lat],
+          ...points.map((p) => [p.lng, p.lat]),
+          [base.lng, base.lat],
+        ];
+        map.on('load', () => {
+          if (cancelled || !map) return;
+          map.addSource('route', {
+            type: 'geojson',
+            data: {
+              type: 'Feature',
+              properties: {},
+              geometry: { type: 'LineString', coordinates: coords },
+            },
+          });
+          map.addLayer({
+            id: 'route-line',
+            type: 'line',
+            source: 'route',
+            layout: { 'line-cap': 'round', 'line-join': 'round' },
+            paint: {
+              'line-color': getComputedStyle(document.documentElement)
+                .getPropertyValue('--vos-color-accent2')
+                .trim(),
+              'line-width': 2.5,
+              'line-dasharray': [1.5, 1],
+            },
+          });
+        });
       }
 
       // Fit to base + all points.
@@ -86,7 +138,7 @@ export function MiniMap({
             [minLng, minLat],
             [maxLng, maxLat],
           ],
-          { padding: 40, maxZoom: 11, duration: 0 },
+          { padding: 36, maxZoom: 12, duration: 0 },
         );
       }
     }
@@ -96,7 +148,7 @@ export function MiniMap({
       cancelled = true;
       map?.remove();
     };
-  }, [base, points]);
+  }, [base, points, routeLine]);
 
   return <div ref={containerRef} className="h-full w-full" aria-hidden />;
 }

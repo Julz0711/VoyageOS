@@ -74,6 +74,56 @@ export async function uploadDocument(_prev: UploadDocState, formData: FormData):
   return { ok: true };
 }
 
+const updateSchema = z.object({
+  kind: z.enum(documentKindIds as [string, ...string[]]),
+  linkedItemId: z.string().optional(),
+  notes: z.string().trim().max(500).optional(),
+});
+
+export type UpdateDocState = { error?: string; ok?: boolean } | undefined;
+
+/** Edit a document's metadata (kind, linked place, notes) — the file itself is immutable. */
+export async function updateDocument(
+  documentId: string,
+  _prev: UpdateDocState,
+  formData: FormData,
+): Promise<UpdateDocState> {
+  const { userId, trip } = await requireActiveTrip();
+  if (!trip) return { error: 'No active trip' };
+  if (!isValidObjectId(documentId)) return { error: 'Invalid document' };
+
+  const parsed = updateSchema.safeParse({
+    kind: formData.get('kind'),
+    linkedItemId: formData.get('linkedItemId') || undefined,
+    notes: formData.get('notes') || undefined,
+  });
+  if (!parsed.success) return { error: parsed.error.issues[0]?.message ?? 'Invalid changes' };
+
+  await connectToDatabase();
+
+  // Verify any linked item belongs to this user + trip (never trust a client-supplied id).
+  let linkedItemId: string | undefined;
+  if (parsed.data.linkedItemId && isValidObjectId(parsed.data.linkedItemId)) {
+    const owned = await ExploreItem.exists({ _id: parsed.data.linkedItemId, userId, tripId: trip.id });
+    if (owned) linkedItemId = parsed.data.linkedItemId;
+  }
+
+  const set: Record<string, unknown> = { kind: parsed.data.kind as DocumentKind };
+  const unset: Record<string, string> = {};
+  if (linkedItemId) set.linkedItemId = linkedItemId;
+  else unset.linkedItemId = '';
+  if (parsed.data.notes) set.notes = parsed.data.notes;
+  else unset.notes = '';
+
+  await TripDocument.updateOne(
+    { _id: documentId, userId },
+    { $set: set, ...(Object.keys(unset).length ? { $unset: unset } : {}) },
+  );
+
+  revalidatePath('/docs');
+  return { ok: true };
+}
+
 export async function deleteDocument(documentId: string): Promise<void> {
   const { userId } = await requireSession();
   if (!isValidObjectId(documentId)) return;

@@ -8,7 +8,7 @@ import {
   useState,
   useTransition,
 } from 'react';
-import { Plus, Trash2, RotateCcw, Pencil, Check, X } from 'lucide-react';
+import { Plus, RotateCcw } from 'lucide-react';
 import type { PackingItemDTO } from '@/lib/dto';
 import {
   togglePacked,
@@ -22,6 +22,7 @@ import { Button } from '@/components/ui/button';
 import { Input, Label } from '@/components/ui/input';
 import { Select } from '@/components/ui/select';
 import { Modal } from '@/components/ui/modal';
+import { ModalFooter } from '@/components/ui/modal-footer';
 import { cn } from '@/lib/utils';
 
 const NEW_GROUP = '__new__';
@@ -184,36 +185,24 @@ function ItemRow({
     patch: { category?: string; label?: string; quantityHint?: string | null; essential?: boolean },
   ) => void;
 }) {
-  const [editing, setEditing] = useState(false);
-
-  if (editing) {
-    return (
-      <li className="py-2">
-        <EditRow
-          item={item}
-          groups={groups}
-          onCancel={() => setEditing(false)}
-          onSave={(patch) => {
-            onEdit(item.id, patch);
-            setEditing(false);
-          }}
-        />
-      </li>
-    );
-  }
+  const [editOpen, setEditOpen] = useState(false);
 
   return (
-    <li className="group flex items-center gap-3 py-2">
+    <li className="flex items-center gap-3 py-2">
       <input
         id={`pack-${item.id}`}
         type="checkbox"
         checked={item.packed}
         onChange={(e) => onToggle(item.id, e.target.checked)}
-        className="size-4 accent-[var(--vos-color-primary)]"
+        className="size-4 shrink-0 accent-[var(--vos-color-primary)]"
       />
-      <label
-        htmlFor={`pack-${item.id}`}
-        className={cn('flex-1 text-sm', item.packed ? 'text-muted line-through' : 'text-ink')}
+      <button
+        type="button"
+        onClick={() => setEditOpen(true)}
+        className={cn(
+          '-my-2 flex-1 py-2 text-left text-sm',
+          item.packed ? 'text-muted line-through' : 'text-ink',
+        )}
       >
         {item.label}
         {item.quantityHint && <span className="text-muted"> · {item.quantityHint}</span>}
@@ -222,32 +211,32 @@ function ItemRow({
             essential
           </span>
         )}
-      </label>
-      <button
-        type="button"
-        onClick={() => setEditing(true)}
-        aria-label="Edit item"
-        className="text-muted/60 hover:text-ink"
-      >
-        <Pencil className="size-4" aria-hidden />
       </button>
-      <button
-        type="button"
-        onClick={() => onDelete(item.id)}
-        aria-label="Delete item"
-        className="text-muted/60 hover:text-danger"
-      >
-        <Trash2 className="size-4" aria-hidden />
-      </button>
+      {editOpen && (
+        <EditPackingModal
+          item={item}
+          groups={groups}
+          onSave={(patch) => {
+            onEdit(item.id, patch);
+            setEditOpen(false);
+          }}
+          onDelete={() => {
+            onDelete(item.id);
+            setEditOpen(false);
+          }}
+          onClose={() => setEditOpen(false)}
+        />
+      )}
     </li>
   );
 }
 
-function EditRow({
+function EditPackingModal({
   item,
   groups,
   onSave,
-  onCancel,
+  onDelete,
+  onClose,
 }: {
   item: PackingItemDTO;
   groups: string[];
@@ -257,90 +246,89 @@ function EditRow({
     quantityHint: string | null;
     essential: boolean;
   }) => void;
-  onCancel: () => void;
+  onDelete: () => void;
+  onClose: () => void;
 }) {
   const [label, setLabel] = useState(item.label);
   const [quantityHint, setQuantityHint] = useState(item.quantityHint ?? '');
   const [group, setGroup] = useState(groups.includes(item.category) ? item.category : NEW_GROUP);
   const [newGroup, setNewGroup] = useState(groups.includes(item.category) ? '' : item.category);
   const [essential, setEssential] = useState(item.essential ?? false);
+  const [error, setError] = useState<string | null>(null);
 
   function submit() {
     const category = (group === NEW_GROUP ? newGroup : group).trim();
     const trimmedLabel = label.trim();
-    if (!trimmedLabel || !category) return;
+    if (!trimmedLabel) return setError('Add an item name');
+    if (!category) return setError('Pick or name a group');
     onSave({ category, label: trimmedLabel, quantityHint: quantityHint.trim() || null, essential });
   }
 
   return (
-    <div className="bg-canvas/50 grid gap-2 rounded-md p-3 sm:grid-cols-[1fr_1fr_auto]">
-      <Input
-        value={label}
-        onChange={(e) => setLabel(e.target.value)}
-        placeholder="Item"
-        aria-label="Item"
-        autoFocus
-        onKeyDown={(e) => {
-          if (e.key === 'Enter') submit();
-          if (e.key === 'Escape') onCancel();
-        }}
-      />
-      <Input
-        value={quantityHint}
-        onChange={(e) => setQuantityHint(e.target.value)}
-        placeholder="Quantity hint"
-        aria-label="Quantity hint"
-      />
-      <div className="flex items-center gap-2">
-        <Select
-          value={group}
-          onChange={(e) => setGroup(e.target.value)}
-          aria-label="Group"
-          className="h-10"
-        >
-          {groups.map((g) => (
-            <option key={g} value={g}>
-              {g}
-            </option>
-          ))}
-          <option value={NEW_GROUP}>+ New group…</option>
-        </Select>
-        <button
-          type="button"
-          onClick={submit}
-          aria-label="Save"
-          className="text-success hover:opacity-80"
-        >
-          <Check className="size-5" aria-hidden />
-        </button>
-        <button
-          type="button"
-          onClick={onCancel}
-          aria-label="Cancel"
-          className="text-muted hover:text-ink"
-        >
-          <X className="size-5" aria-hidden />
-        </button>
+    <Modal title="Edit item" eyebrow="Update item" onClose={onClose}>
+      <div className="space-y-3 p-5">
+        <div>
+          <Label htmlFor="edit-pack-label">Item</Label>
+          <Input
+            id="edit-pack-label"
+            value={label}
+            onChange={(e) => setLabel(e.target.value)}
+            autoFocus
+            placeholder="Water shoes"
+          />
+        </div>
+        <div className="grid grid-cols-2 gap-3">
+          <div>
+            <Label htmlFor="edit-pack-group">Group</Label>
+            <Select
+              id="edit-pack-group"
+              value={group}
+              onChange={(e) => setGroup(e.target.value)}
+              className="h-10 w-full"
+            >
+              {groups.map((g) => (
+                <option key={g} value={g}>
+                  {g}
+                </option>
+              ))}
+              <option value={NEW_GROUP}>+ New group…</option>
+            </Select>
+          </div>
+          <div>
+            <Label htmlFor="edit-pack-qty">Quantity hint</Label>
+            <Input
+              id="edit-pack-qty"
+              value={quantityHint}
+              onChange={(e) => setQuantityHint(e.target.value)}
+              placeholder="2 pairs"
+            />
+          </div>
+        </div>
+        {group === NEW_GROUP && (
+          <Input
+            value={newGroup}
+            onChange={(e) => setNewGroup(e.target.value)}
+            placeholder="New group name"
+            aria-label="New group name"
+          />
+        )}
+        <label className="text-ink flex items-center gap-2 text-sm">
+          <input
+            type="checkbox"
+            checked={essential}
+            onChange={(e) => setEssential(e.target.checked)}
+            className="size-4 accent-[var(--vos-color-primary)]"
+          />
+          Mark as essential
+        </label>
+        {error && <p className="text-danger text-sm">{error}</p>}
+        <ModalFooter onDelete={onDelete} onCancel={onClose} confirmText="Delete this item?">
+          <Button type="button" onClick={submit}>
+            Save changes
+          </Button>
+        </ModalFooter>
       </div>
-      {group === NEW_GROUP && (
-        <Input
-          value={newGroup}
-          onChange={(e) => setNewGroup(e.target.value)}
-          placeholder="New group name"
-          aria-label="New group name"
-          className="sm:col-span-3"
-        />
-      )}
-      <label className="text-ink flex items-center gap-2 text-sm sm:col-span-3">
-        <input
-          type="checkbox"
-          checked={essential}
-          onChange={(e) => setEssential(e.target.checked)}
-          className="size-4 accent-[var(--vos-color-primary)]"
-        />
-        Essential
-      </label>
-    </div>
+    </Modal>
   );
 }
 

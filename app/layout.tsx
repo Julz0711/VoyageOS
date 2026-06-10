@@ -1,5 +1,5 @@
 import type { Metadata, Viewport } from 'next';
-import { Syne, DM_Sans, Sora } from 'next/font/google';
+import { Syne, DM_Sans, Sora, Space_Grotesk } from 'next/font/google';
 import './globals.css';
 import { themeRootCss } from '@/lib/theme/css';
 import { strings } from '@/lib/strings';
@@ -20,6 +20,13 @@ const dmSans = DM_Sans({
 
 const sora = Sora({
   variable: '--font-sora',
+  subsets: ['latin'],
+  display: 'swap',
+});
+
+// Used for numbers app-wide (money, stats, counts) — see the `.num` utility in globals.css.
+const spaceGrotesk = Space_Grotesk({
+  variable: '--font-space-grotesk',
   subsets: ['latin'],
   display: 'swap',
 });
@@ -47,7 +54,10 @@ export const viewport: Viewport = {
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
-    <html lang="en" className={`${syne.variable} ${dmSans.variable} ${sora.variable}`}>
+    <html
+      lang="en"
+      className={`${syne.variable} ${dmSans.variable} ${sora.variable} ${spaceGrotesk.variable}`}
+    >
       <head>
         {/* Inject theme tokens from config/theme.ts onto :root (server-rendered, no FOUC). */}
         <style id="vos-theme" dangerouslySetInnerHTML={{ __html: themeRootCss() }} />

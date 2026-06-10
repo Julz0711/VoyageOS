@@ -37,6 +37,7 @@
   --font-display: var(--vos-font-display);
   --font-heading: var(--vos-font-heading);
   --font-sans: var(--vos-font-sans);
+  --font-numeric: var(--vos-font-numeric);
 
   --shadow-card: var(--vos-shadow-card);
   --shadow-lift: var(--vos-shadow-lift);
@@ -86,6 +87,13 @@ body {
   letter-spacing: 0.12em;
   font-size: 0.625rem;
   font-weight: 500;
+}
+
+/* Numbers app-wide use Space Grotesk with tabular figures so columns of digits align. Apply
+ * `.num` to any standalone numeric value (money, stats, counts, percentages, coordinates). */
+.num {
+  font-family: var(--font-numeric);
+  font-variant-numeric: tabular-nums;
 }
 
 /* Hairline rule used between field-guide entries / sections. */

@@ -133,12 +133,12 @@ function DayCard({
       />
       {fc ? (
         <>
-          <span className="font-sans text-sm">
+          <span className="num text-sm">
             <span className="text-ink">{fc.tMax}°</span>{' '}
             <span className="text-muted">{fc.tMin}°</span>
           </span>
           {fc.precipProbMax != null && (
-            <span className="text-accent-2 flex items-center gap-0.5 font-sans text-[11px]">
+            <span className="text-accent-2 num flex items-center gap-0.5 text-[11px]">
               <Droplets className="size-3" aria-hidden />
               {fc.precipProbMax}%
             </span>
@@ -146,7 +146,7 @@ function DayCard({
         </>
       ) : (
         <>
-          <span className="text-muted font-sans text-sm">
+          <span className="text-muted num text-sm">
             {climate ? `${climate.avgTMax}° ${climate.avgTMin}°` : '—'}
           </span>
           <span className="text-muted/70 font-sans text-[10px] tracking-wide uppercase">avg</span>

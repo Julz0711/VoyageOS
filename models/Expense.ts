@@ -9,6 +9,8 @@ export interface IExpense {
   category: string;
   label: string;
   date: Date;
+  /** Spend phase relative to the trip: 'pre' | 'during' | 'post' (see config/expenses). */
+  phase: string;
 }
 
 const ExpenseSchema = new Schema<IExpense>(
@@ -19,6 +21,7 @@ const ExpenseSchema = new Schema<IExpense>(
     category: { type: String, required: true },
     label: { type: String, required: true },
     date: { type: Date, required: true },
+    phase: { type: String, required: true, default: 'during' },
   },
   baseSchemaOptions,
 );

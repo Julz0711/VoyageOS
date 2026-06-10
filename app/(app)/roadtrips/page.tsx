@@ -18,7 +18,13 @@ export default async function RoadtripsPage() {
   // Candidate stops: real places, not other roadtrip cards.
   const candidates = items
     .filter((i) => i.category !== 'road-trip')
-    .map((i) => ({ id: i.id, title: i.title, category: i.category }));
+    .map((i) => ({
+      id: i.id,
+      title: i.title,
+      category: i.category,
+      lat: i.location?.lat,
+      lng: i.location?.lng,
+    }));
 
   return (
     <RoadtripsView

@@ -9,9 +9,15 @@ import {
   useState,
   useTransition,
 } from 'react';
-import { Upload, Trash2, Eye, Download, Link2, FileText } from 'lucide-react';
+import { Upload, Eye, Download, Link2, FileText } from 'lucide-react';
 import type { DocumentDTO } from '@/lib/dto';
-import { uploadDocument, deleteDocument, type UploadDocState } from '@/lib/documents/actions';
+import {
+  uploadDocument,
+  updateDocument,
+  deleteDocument,
+  type UploadDocState,
+  type UpdateDocState,
+} from '@/lib/documents/actions';
 import {
   documentKinds,
   documentKindIds,
@@ -23,6 +29,7 @@ import { Button } from '@/components/ui/button';
 import { Input, Label } from '@/components/ui/input';
 import { Select } from '@/components/ui/select';
 import { Modal } from '@/components/ui/modal';
+import { ModalFooter } from '@/components/ui/modal-footer';
 
 type LinkOption = { id: string; title: string };
 
@@ -39,6 +46,7 @@ export function DocsView({
   );
   const [, startTransition] = useTransition();
   const [showUpload, setShowUpload] = useState(false);
+  const [editing, setEditing] = useState<DocumentDTO | null>(null);
 
   const titleById = useMemo(
     () => new Map(exploreItems.map((i) => [i.id, i.title])),
@@ -81,6 +89,17 @@ export function DocsView({
       {showUpload && (
         <UploadModal exploreItems={exploreItems} onClose={() => setShowUpload(false)} />
       )}
+      {editing && (
+        <DocModal
+          doc={editing}
+          exploreItems={exploreItems}
+          onDelete={() => {
+            onDelete(editing.id);
+            setEditing(null);
+          }}
+          onClose={() => setEditing(null)}
+        />
+      )}
 
       {groups.length === 0 ? (
         <p className="border-border bg-surface/50 text-muted rounded-lg border border-dashed p-10 text-center">
@@ -109,7 +128,7 @@ export function DocsView({
                       key={doc.id}
                       doc={doc}
                       linkedTitle={doc.linkedItemId ? titleById.get(doc.linkedItemId) : undefined}
-                      onDelete={onDelete}
+                      onOpen={() => setEditing(doc)}
                     />
                   ))}
                 </ul>
@@ -125,85 +144,132 @@ export function DocsView({
 function DocRow({
   doc,
   linkedTitle,
-  onDelete,
+  onOpen,
 }: {
   doc: DocumentDTO;
   linkedTitle?: string;
-  onDelete: (id: string) => void;
+  onOpen: () => void;
 }) {
-  const [confirming, setConfirming] = useState(false);
-  const href = `/api/documents/${doc.id}`;
-
   return (
-    <li className="flex items-center gap-3 py-3">
-      <span className="bg-canvas text-muted flex size-9 shrink-0 items-center justify-center rounded-md">
-        <FileText className="size-4" aria-hidden />
-      </span>
-      <div className="min-w-0 flex-1">
-        <p className="text-ink truncate text-sm font-medium">{doc.fileName}</p>
-        <p className="text-muted flex flex-wrap items-center gap-x-2 font-sans text-[11px]">
-          <span>{formatBytes(doc.sizeBytes)}</span>
-          {linkedTitle && (
-            <span className="text-ink/70 inline-flex items-center gap-1">
-              <Link2 className="size-3" aria-hidden /> {linkedTitle}
-            </span>
-          )}
-          {doc.notes && <span className="truncate">· {doc.notes}</span>}
-        </p>
-      </div>
-
-      {confirming ? (
-        <span className="flex items-center gap-2">
-          <span className="text-muted text-xs">Delete?</span>
-          <Button variant="secondary" size="sm" onClick={() => setConfirming(false)}>
-            Cancel
-          </Button>
-          <Button variant="danger" size="sm" onClick={() => onDelete(doc.id)}>
-            Delete
-          </Button>
+    <li>
+      <button
+        type="button"
+        onClick={onOpen}
+        className="hover:bg-canvas/50 -mx-2 flex w-[calc(100%+1rem)] items-center gap-3 rounded-md px-2 py-3 text-left transition-colors"
+      >
+        <span className="bg-canvas text-muted flex size-9 shrink-0 items-center justify-center rounded-md">
+          <FileText className="size-4" aria-hidden />
         </span>
-      ) : (
-        <span className="flex shrink-0 items-center gap-1">
-          <IconLink href={href} label="Preview">
-            <Eye className="size-4" aria-hidden />
-          </IconLink>
-          <IconLink href={`${href}?dl=1`} label="Download">
-            <Download className="size-4" aria-hidden />
-          </IconLink>
-          <button
-            type="button"
-            onClick={() => setConfirming(true)}
-            aria-label="Delete document"
-            className="text-muted/60 hover:text-danger p-1.5 transition-colors"
-          >
-            <Trash2 className="size-4" aria-hidden />
-          </button>
-        </span>
-      )}
+        <div className="min-w-0 flex-1">
+          <p className="text-ink truncate text-sm font-medium">{doc.fileName}</p>
+          <p className="text-muted flex flex-wrap items-center gap-x-2 font-sans text-[11px]">
+            <span className="num">{formatBytes(doc.sizeBytes)}</span>
+            {linkedTitle && (
+              <span className="text-ink/70 inline-flex items-center gap-1">
+                <Link2 className="size-3" aria-hidden /> {linkedTitle}
+              </span>
+            )}
+            {doc.notes && <span className="truncate">· {doc.notes}</span>}
+          </p>
+        </div>
+      </button>
     </li>
   );
 }
 
-function IconLink({
-  href,
-  label,
-  children,
+function DocModal({
+  doc,
+  exploreItems,
+  onDelete,
+  onClose,
 }: {
-  href: string;
-  label: string;
-  children: React.ReactNode;
+  doc: DocumentDTO;
+  exploreItems: LinkOption[];
+  onDelete: () => void;
+  onClose: () => void;
 }) {
+  const [state, action, pending] = useActionState<UpdateDocState, FormData>(
+    updateDocument.bind(null, doc.id),
+    undefined,
+  );
+  const href = `/api/documents/${doc.id}`;
+
+  useEffect(() => {
+    if (state?.ok) onClose();
+  }, [state, onClose]);
+
   return (
-    <a
-      href={href}
-      target="_blank"
-      rel="noopener noreferrer"
-      aria-label={label}
-      title={label}
-      className="text-muted hover:text-ink p-1.5 transition-colors"
-    >
-      {children}
-    </a>
+    <Modal title={doc.fileName} eyebrow="Document" onClose={onClose}>
+      <form action={action} className="space-y-4 p-5">
+        <div className="text-muted flex flex-wrap items-center gap-2 font-sans text-xs">
+          <span className="num">{formatBytes(doc.sizeBytes)}</span>
+          <a
+            href={href}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-ink hover:text-muted inline-flex items-center gap-1 underline"
+          >
+            <Eye className="size-3.5" aria-hidden /> Preview
+          </a>
+          <a
+            href={`${href}?dl=1`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-ink hover:text-muted inline-flex items-center gap-1 underline"
+          >
+            <Download className="size-3.5" aria-hidden /> Download
+          </a>
+        </div>
+
+        <div className="grid gap-4 sm:grid-cols-2">
+          <div>
+            <Label htmlFor="edit-kind">Kind</Label>
+            <Select id="edit-kind" name="kind" defaultValue={doc.kind} className="w-full">
+              {documentKindIds.map((k) => (
+                <option key={k} value={k}>
+                  {documentKinds[k].label}
+                </option>
+              ))}
+            </Select>
+          </div>
+          <div>
+            <Label htmlFor="edit-linkedItemId">Link to place (optional)</Label>
+            <Select
+              id="edit-linkedItemId"
+              name="linkedItemId"
+              defaultValue={doc.linkedItemId ?? ''}
+              className="w-full"
+            >
+              <option value="">— none —</option>
+              {exploreItems.map((i) => (
+                <option key={i.id} value={i.id}>
+                  {i.title}
+                </option>
+              ))}
+            </Select>
+          </div>
+        </div>
+
+        <div>
+          <Label htmlFor="edit-notes">Notes (optional)</Label>
+          <Input
+            id="edit-notes"
+            name="notes"
+            defaultValue={doc.notes ?? ''}
+            placeholder="Confirmation #, seat, etc."
+            maxLength={500}
+          />
+        </div>
+
+        {state?.error && <p className="text-danger text-sm">{state.error}</p>}
+
+        <ModalFooter onDelete={onDelete} onCancel={onClose} confirmText="Delete this document?">
+          <Button type="submit" disabled={pending}>
+            {pending ? 'Saving…' : 'Save changes'}
+          </Button>
+        </ModalFooter>
+      </form>
+    </Modal>
   );
 }
 

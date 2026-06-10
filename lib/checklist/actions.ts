@@ -43,6 +43,39 @@ export async function addChecklistItem(
   return { ok: true };
 }
 
+const updateSchema = z.object({
+  label: z.string().trim().min(1, 'Add a task').max(200),
+  dueDate: z.union([z.coerce.date(), z.literal('')]).optional(),
+});
+
+export type UpdateChecklistState = { error?: string; ok?: boolean } | undefined;
+
+export async function updateChecklistItem(
+  itemId: string,
+  _prev: UpdateChecklistState,
+  formData: FormData,
+): Promise<UpdateChecklistState> {
+  const { userId } = await requireSession();
+  if (!isValidObjectId(itemId)) return { error: 'Invalid task' };
+
+  const parsed = updateSchema.safeParse({
+    label: formData.get('label'),
+    dueDate: formData.get('dueDate') ?? '',
+  });
+  if (!parsed.success) return { error: parsed.error.issues[0]?.message ?? 'Invalid task' };
+
+  await connectToDatabase();
+  await ChecklistItem.updateOne(
+    { _id: itemId, userId },
+    parsed.data.dueDate instanceof Date
+      ? { $set: { label: parsed.data.label, dueDate: parsed.data.dueDate } }
+      : { $set: { label: parsed.data.label }, $unset: { dueDate: '' } },
+  );
+
+  revalidatePath('/checklist');
+  return { ok: true };
+}
+
 export async function toggleChecklistItem(itemId: string, done: boolean): Promise<void> {
   const { userId } = await requireSession();
   if (!isValidObjectId(itemId)) return;

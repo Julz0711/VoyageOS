@@ -18,7 +18,7 @@ import {
 } from 'lucide-react';
 import { setActiveTrip } from '@/lib/trips/actions';
 import { categoryColor } from '@/config/categories';
-import { getExpenseCategory, formatMoney } from '@/config/expenses';
+import { expensePhaseIds, getExpensePhase, formatMoney } from '@/config/expenses';
 import { cn } from '@/lib/utils';
 import { MiniMap } from './MiniMap';
 import type { TripSummary as TripSummaryData } from '@/lib/trips/summary';
@@ -60,12 +60,14 @@ export function TripSummary({
   base,
   currency,
   budget,
+  phaseBudgets,
 }: {
   tripId: string;
   summary: TripSummaryData;
   base: { lat: number; lng: number };
   currency: string;
   budget?: number;
+  phaseBudgets?: { pre?: number; during?: number; post?: number };
 }) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
@@ -81,9 +83,10 @@ export function TripSummary({
 
   const { explore, plan, roadtrips, map, packing, budget: spend, checklist, docs } = summary;
   const packPct = packing.total ? Math.round((packing.packed / packing.total) * 100) : 0;
-  const budgetPct =
-    budget && budget > 0 ? Math.min(100, Math.round((spend.total / budget) * 100)) : 0;
-  const overBudget = budget != null && spend.total > budget;
+  // Overall budget = sum of the per-phase budgets (falls back to a legacy explicit budget).
+  const phaseBudgetSum =
+    (phaseBudgets?.pre ?? 0) + (phaseBudgets?.during ?? 0) + (phaseBudgets?.post ?? 0);
+  const overallBudget = phaseBudgetSum > 0 ? phaseBudgetSum : budget;
 
   // The section cards in reading order. Rendered as a single column on mobile, and split into
   // two vertical masonry columns (left-to-right: even → left, odd → right) on sm+.
@@ -206,11 +209,12 @@ export function TripSummary({
             />
           </div>
           <p className="text-muted font-sans text-xs">
-            {packPct}% packed
+            <span className="num">{packPct}%</span> packed
             {packing.essentialsLeft > 0 && (
               <span className="text-danger">
                 {' '}
-                · {packing.essentialsLeft} essential{packing.essentialsLeft === 1 ? '' : 's'} left
+                · <span className="num">{packing.essentialsLeft}</span> essential
+                {packing.essentialsLeft === 1 ? '' : 's'} left
               </span>
             )}
           </p>
@@ -233,38 +237,55 @@ export function TripSummary({
     >
       {spend.total ? (
         <div className="space-y-3">
-          {budget != null && (
-            <div className="space-y-1.5">
-              <div className="rounded-pill bg-ink/[0.06] h-1.5 w-full overflow-hidden">
-                <div
-                  className="rounded-pill h-full transition-all"
-                  style={{
-                    width: `${budgetPct}%`,
-                    backgroundColor: overBudget ? 'var(--vos-color-danger)' : COLORS.budget,
-                  }}
-                />
-              </div>
-              <p className={cn('font-sans text-xs', overBudget ? 'text-danger' : 'text-muted')}>
-                {budgetPct}% of {formatMoney(budget, currency)}
-                {overBudget ? ' · over budget' : ''}
-              </p>
+          {/* Total — a stacked bar split by phase (scaled to the budget when set). */}
+          <div className="space-y-1">
+            <div className="flex items-center justify-between gap-2 text-xs">
+              <span className="text-ink font-medium">Total</span>
+              <span
+                className={cn(
+                  'num shrink-0',
+                  overallBudget != null && spend.total > overallBudget ? 'text-danger' : 'text-ink',
+                )}
+              >
+                {formatMoney(spend.total, currency)}
+                {overallBudget != null && (
+                  <span className="text-muted/60"> / {formatMoney(overallBudget, currency)}</span>
+                )}
+              </span>
             </div>
-          )}
-          <ul className="space-y-1.5">
-            {spend.byCategory.map((c) => (
-              <li key={c.category} className="flex items-center gap-2 text-sm">
-                <span
-                  className="size-2 shrink-0 rounded-full"
-                  style={{ backgroundColor: getExpenseCategory(c.category).color }}
-                  aria-hidden
-                />
-                <span className="text-ink truncate">{getExpenseCategory(c.category).label}</span>
-                <span className="text-muted ml-auto shrink-0 font-sans text-xs">
-                  {formatMoney(c.amount, currency)}
-                </span>
-              </li>
-            ))}
-          </ul>
+            <div className="rounded-pill bg-ink/[0.06] flex h-1.5 w-full overflow-hidden">
+              {expensePhaseIds.map((id) => {
+                // Scale to the budget when it covers spend (so empty space = remaining budget);
+                // otherwise scale to total so the phases fill the bar.
+                const denom =
+                  overallBudget != null && overallBudget >= spend.total
+                    ? overallBudget
+                    : spend.total;
+                const w = denom > 0 ? (spend.byPhase[id] / denom) * 100 : 0;
+                if (w <= 0) return null;
+                return (
+                  <span
+                    key={id}
+                    className="h-full"
+                    style={{ width: `${w}%`, backgroundColor: getExpensePhase(id).color }}
+                    title={`${getExpensePhase(id).short}: ${formatMoney(spend.byPhase[id], currency)}`}
+                  />
+                );
+              })}
+            </div>
+          </div>
+          {/* Per-phase progress */}
+          {expensePhaseIds.map((id) => (
+            <ProgressRow
+              key={id}
+              label={getExpensePhase(id).short}
+              spent={spend.byPhase[id]}
+              budget={phaseBudgets?.[id]}
+              of={spend.total}
+              color={getExpensePhase(id).color}
+              currency={currency}
+            />
+          ))}
         </div>
       ) : (
         <Empty>No expenses logged yet.</Empty>
@@ -439,4 +460,64 @@ function Card({
 
 function Empty({ children }: { children: React.ReactNode }) {
   return <p className="text-muted/70 font-sans text-xs">{children}</p>;
+}
+
+/**
+ * A labelled spend bar. With a budget it shows progress (spent / budget, red when over);
+ * without one it falls back to the value's share of `of` (e.g. a phase's share of total spend).
+ */
+function ProgressRow({
+  label,
+  spent,
+  budget,
+  of,
+  color,
+  currency,
+  emphasize,
+}: {
+  label: string;
+  spent: number;
+  budget?: number;
+  of?: number;
+  color: string;
+  currency: string;
+  emphasize?: boolean;
+}) {
+  const hasBudget = budget != null && budget > 0;
+  const over = hasBudget && spent > budget;
+  const pct = hasBudget
+    ? Math.min(100, (spent / budget) * 100)
+    : of && of > 0
+      ? Math.min(100, (spent / of) * 100)
+      : spent > 0
+        ? 100
+        : 0;
+
+  return (
+    <div className="space-y-1">
+      <div className="flex items-center justify-between gap-2 text-xs">
+        <span
+          className={cn(
+            'flex items-center gap-1.5',
+            emphasize ? 'text-ink font-medium' : 'text-muted',
+          )}
+        >
+          {!emphasize && (
+            <span className="size-1.5 rounded-full" style={{ backgroundColor: color }} aria-hidden />
+          )}
+          {label}
+        </span>
+        <span className={cn('num shrink-0', over ? 'text-danger' : emphasize ? 'text-ink' : 'text-muted')}>
+          {formatMoney(spent, currency)}
+          {hasBudget && <span className="text-muted/60"> / {formatMoney(budget, currency)}</span>}
+        </span>
+      </div>
+      <div className="rounded-pill bg-ink/[0.06] h-1.5 w-full overflow-hidden">
+        <div
+          className="rounded-pill h-full transition-all"
+          style={{ width: `${pct}%`, backgroundColor: over ? 'var(--vos-color-danger)' : color }}
+        />
+      </div>
+    </div>
+  );
 }

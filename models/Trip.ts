@@ -21,6 +21,8 @@ export interface ITrip {
   currency?: string;
   /** Optional overall budget in `currency` units. */
   budget?: number;
+  /** Optional per-phase budgets (before / during / after the trip), in `currency` units. */
+  phaseBudgets?: { pre?: number; during?: number; post?: number };
   /** Read-only public share token (null/absent = sharing off). */
   shareToken?: string;
   archived: boolean;
@@ -47,6 +49,16 @@ const TripSchema = new Schema<ITrip>(
     categories: { type: [String], default: [] },
     currency: { type: String, default: 'EUR' },
     budget: { type: Number },
+    phaseBudgets: {
+      type: new Schema(
+        {
+          pre: { type: Number },
+          during: { type: Number },
+          post: { type: Number },
+        },
+        { _id: false },
+      ),
+    },
     shareToken: { type: String, index: true },
     archived: { type: Boolean, default: false },
   },

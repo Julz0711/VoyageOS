@@ -9,18 +9,21 @@ import {
   useState,
   useTransition,
 } from 'react';
-import { Plus, Trash2, CalendarClock } from 'lucide-react';
+import { Plus, CalendarClock } from 'lucide-react';
 import type { ChecklistItemDTO, TripDTO } from '@/lib/dto';
 import {
   addChecklistItem,
+  updateChecklistItem,
   toggleChecklistItem,
   deleteChecklistItem,
   type AddChecklistState,
+  type UpdateChecklistState,
 } from '@/lib/checklist/actions';
 import { tripCountdown } from '@/lib/dates';
 import { Button } from '@/components/ui/button';
 import { Input, Label } from '@/components/ui/input';
 import { Modal } from '@/components/ui/modal';
+import { ModalFooter } from '@/components/ui/modal-footer';
 import { cn } from '@/lib/utils';
 
 type Action = { type: 'toggle'; id: string; done: boolean } | { type: 'delete'; id: string };
@@ -38,6 +41,7 @@ export function ChecklistView({ trip, items }: { trip: TripDTO; items: Checklist
   const [optimistic, apply] = useOptimistic(items, reducer);
   const [, startTransition] = useTransition();
   const [showAdd, setShowAdd] = useState(false);
+  const [editing, setEditing] = useState<ChecklistItemDTO | null>(null);
 
   const today = new Date().toISOString().slice(0, 10);
   const countdown = tripCountdown(trip.dateStart, trip.dateEnd);
@@ -101,6 +105,16 @@ export function ChecklistView({ trip, items }: { trip: TripDTO; items: Checklist
       </div>
 
       {showAdd && <AddTaskModal onClose={() => setShowAdd(false)} />}
+      {editing && (
+        <EditTaskModal
+          item={editing}
+          onDelete={() => {
+            onDelete(editing.id);
+            setEditing(null);
+          }}
+          onClose={() => setEditing(null)}
+        />
+      )}
 
       {total === 0 ? (
         <p className="border-border bg-surface/50 text-muted rounded-lg border border-dashed p-10 text-center">
@@ -117,12 +131,13 @@ export function ChecklistView({ trip, items }: { trip: TripDTO; items: Checklist
                   type="checkbox"
                   checked={item.done}
                   onChange={(e) => onToggle(item.id, e.target.checked)}
-                  className="size-4 accent-[var(--vos-color-primary)]"
+                  className="size-4 shrink-0 accent-[var(--vos-color-primary)]"
                 />
-                <label
-                  htmlFor={`task-${item.id}`}
+                <button
+                  type="button"
+                  onClick={() => setEditing(item)}
                   className={cn(
-                    'flex-1 text-sm',
+                    '-my-3 flex-1 py-3 text-left text-sm',
                     item.done ? 'text-muted line-through' : 'text-ink',
                   )}
                 >
@@ -135,17 +150,9 @@ export function ChecklistView({ trip, items }: { trip: TripDTO; items: Checklist
                       )}
                     >
                       {overdue ? 'overdue · ' : 'due '}
-                      {item.dueDate}
+                      <span className="num">{item.dueDate}</span>
                     </span>
                   )}
-                </label>
-                <button
-                  type="button"
-                  onClick={() => onDelete(item.id)}
-                  aria-label="Delete task"
-                  className="text-muted/60 hover:text-danger shrink-0 p-1 transition-colors"
-                >
-                  <Trash2 className="size-4" aria-hidden />
                 </button>
               </li>
             );
@@ -153,6 +160,46 @@ export function ChecklistView({ trip, items }: { trip: TripDTO; items: Checklist
         </ul>
       )}
     </div>
+  );
+}
+
+function EditTaskModal({
+  item,
+  onDelete,
+  onClose,
+}: {
+  item: ChecklistItemDTO;
+  onDelete: () => void;
+  onClose: () => void;
+}) {
+  const [state, action, pending] = useActionState<UpdateChecklistState, FormData>(
+    updateChecklistItem.bind(null, item.id),
+    undefined,
+  );
+
+  useEffect(() => {
+    if (state?.ok) onClose();
+  }, [state, onClose]);
+
+  return (
+    <Modal title="Edit task" eyebrow="Update task" onClose={onClose}>
+      <form action={action} className="space-y-3 p-5">
+        <div>
+          <Label htmlFor="edit-label">Task</Label>
+          <Input id="edit-label" name="label" required autoFocus defaultValue={item.label} />
+        </div>
+        <div>
+          <Label htmlFor="edit-dueDate">Due (optional)</Label>
+          <Input id="edit-dueDate" name="dueDate" type="date" defaultValue={item.dueDate ?? ''} />
+        </div>
+        {state?.error && <p className="text-danger text-sm">{state.error}</p>}
+        <ModalFooter onDelete={onDelete} onCancel={onClose} confirmText="Delete this task?">
+          <Button type="submit" disabled={pending}>
+            {pending ? 'Saving…' : 'Save changes'}
+          </Button>
+        </ModalFooter>
+      </form>
+    </Modal>
   );
 }
 
