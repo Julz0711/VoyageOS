@@ -28,6 +28,8 @@ export interface RecapMeta {
 export interface RecapPhotoImage {
   dataUrl: string;
   label: string;
+  /** Category id of the linked place — renders its icon before the caption. */
+  category?: string;
 }
 
 // --- Brand fonts (loaded at render time; we fall back to Helvetica if they fail) ---
@@ -139,11 +141,13 @@ function makeStyles(F: FontSet) {
     fcIcon: { marginVertical: 5 },
     fcTemp: { fontSize: 9, fontFamily: F.num },
 
-    // Photos
-    photoGrid: { flexDirection: 'row' as const, flexWrap: 'wrap' as const, gap: 8 },
-    photoCell: { width: '31.5%' },
-    photoImg: { width: '100%', height: 92, objectFit: 'cover' as const, borderRadius: 6 },
-    photoLabel: { fontSize: 7, color: C.muted, marginTop: 3, fontFamily: F.body },
+    // Photos — polaroid frames
+    photoGrid: { flexDirection: 'row' as const, flexWrap: 'wrap' as const, gap: 10 },
+    photoCell: { width: '30.8%' },
+    polaroid: { borderWidth: 1, borderColor: C.border, borderRadius: 4, backgroundColor: '#ffffff', padding: 5, paddingBottom: 7 },
+    photoImg: { width: '100%', height: 86, objectFit: 'cover' as const, borderRadius: 2 },
+    photoCaption: { flexDirection: 'row' as const, alignItems: 'center' as const, justifyContent: 'center' as const, marginTop: 5, gap: 3 },
+    photoLabel: { fontSize: 7.5, color: C.ink, textAlign: 'center' as const, fontFamily: F.body },
 
     // Spendings
     panel: { borderWidth: 1, borderColor: C.border, borderRadius: 10, padding: 16 },
@@ -346,9 +350,16 @@ function RecapDocument({
             <View style={s.photoGrid}>
               {photos.map((p, i) => (
                 <View key={i} style={s.photoCell} wrap={false}>
-                  {/* eslint-disable-next-line jsx-a11y/alt-text */}
-                  <Image src={p.dataUrl} style={s.photoImg} />
-                  {p.label ? <Text style={s.photoLabel}>{p.label}</Text> : null}
+                  <View style={s.polaroid}>
+                    {/* eslint-disable-next-line jsx-a11y/alt-text */}
+                    <Image src={p.dataUrl} style={s.photoImg} />
+                    <View style={s.photoCaption}>
+                      {p.category ? (
+                        <PdfIcon node={categoryNode(p.category)} size={8} color={categoryHex(p.category)} strokeWidth={2.2} />
+                      ) : null}
+                      <Text style={s.photoLabel}>{p.label || ' '}</Text>
+                    </View>
+                  </View>
                 </View>
               ))}
             </View>

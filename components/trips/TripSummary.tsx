@@ -3,6 +3,7 @@
 import { useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { format, parseISO } from 'date-fns';
+import Image from 'next/image';
 import {
   Compass,
   CalendarDays,
@@ -12,6 +13,7 @@ import {
   Wallet,
   ListChecks,
   FileText,
+  Images,
   ArrowRight,
   Loader2,
   type LucideIcon,
@@ -34,6 +36,7 @@ const COLORS = {
   budget: 'var(--vos-color-success)',
   checklist: 'var(--vos-color-primary)',
   docs: 'var(--vos-color-muted)',
+  photos: 'var(--vos-color-map-culture)',
 } as const;
 
 const DOC_LABEL: Record<string, string> = {
@@ -81,7 +84,8 @@ export function TripSummary({
     });
   }
 
-  const { explore, plan, roadtrips, map, packing, budget: spend, checklist, docs } = summary;
+  const { explore, plan, roadtrips, map, packing, budget: spend, checklist, docs, photos } =
+    summary;
   const packPct = packing.total ? Math.round((packing.packed / packing.total) * 100) : 0;
   // Overall budget = sum of the per-phase budgets (falls back to a legacy explicit budget).
   const phaseBudgetSum =
@@ -352,12 +356,43 @@ export function TripSummary({
         <Empty>No documents — add bookings, tickets, IDs.</Empty>
       )}
     </Card>,
+
+    <Card
+      key="photos"
+      color={COLORS.photos}
+      icon={Images}
+      label="Photos"
+      meta={photos.total ? `${photos.total} ${photos.total === 1 ? 'photo' : 'photos'}` : 'Empty'}
+      href="/photos"
+      onOpen={open}
+      loading={pending && target === '/photos'}
+      anyPending={pending}
+    >
+      {photos.preview.length ? (
+        <div className="grid grid-cols-3 gap-1">
+          {photos.preview.map((id) => (
+            <div key={id} className="bg-canvas relative aspect-square overflow-hidden rounded-sm">
+              <Image
+                src={`/api/photos/${id}`}
+                alt=""
+                fill
+                sizes="120px"
+                unoptimized
+                className="object-cover"
+              />
+            </div>
+          ))}
+        </div>
+      ) : (
+        <Empty>No photos yet — add your trip memories.</Empty>
+      )}
+    </Card>,
   ];
 
   // Explicit two-column layout for sm+ (cards keep natural height). Mobile uses one column in
   // the array's natural order.
   const pick = (keys: string[]) => cards.filter((c) => keys.includes(c.key as string));
-  const leftCol = pick(['explore', 'plan', 'budget']);
+  const leftCol = pick(['explore', 'plan', 'photos', 'budget']);
   const rightCol = pick(['roadtrips', 'pack', 'checklist', 'docs']);
 
   return (

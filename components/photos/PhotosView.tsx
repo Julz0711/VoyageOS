@@ -1,25 +1,32 @@
 'use client';
 
-import { useActionState, useEffect, useMemo, useOptimistic, useRef, useState, useTransition } from 'react';
+import {
+  useActionState,
+  useEffect,
+  useMemo,
+  useOptimistic,
+  useRef,
+  useState,
+  useTransition,
+} from 'react';
 import Image from 'next/image';
 import { format, parseISO } from 'date-fns';
-import { ImagePlus, MapPin, CalendarDays } from 'lucide-react';
+import { ImagePlus } from 'lucide-react';
 import type { PhotoDTO } from '@/lib/dto';
 import { uploadPhoto, updatePhoto, deletePhoto, type PhotoState } from '@/lib/photos/actions';
 import { PHOTO_ACCEPT, MAX_PHOTO_MB, validatePhotoFile } from '@/config/photos';
+import { getCategory, categoryColor } from '@/config/categories';
 import { Button } from '@/components/ui/button';
 import { Input, Label } from '@/components/ui/input';
 import { Select } from '@/components/ui/select';
 import { Modal } from '@/components/ui/modal';
 import { ModalFooter } from '@/components/ui/modal-footer';
 
-type LinkOption = { id: string; title: string };
+type LinkOption = { id: string; title: string; category: string };
 
-function dayLabel(day: string, days: string[]): string {
-  const idx = days.indexOf(day);
+function dayLabel(day: string): string {
   try {
-    const d = format(parseISO(day), 'EEE d MMM');
-    return idx >= 0 ? `Day ${idx + 1} · ${d}` : d;
+    return format(parseISO(day), 'd MMM yyyy');
   } catch {
     return day;
   }
@@ -41,7 +48,7 @@ export function PhotosView({
   const [showUpload, setShowUpload] = useState(false);
   const [active, setActive] = useState<PhotoDTO | null>(null);
 
-  const titleById = useMemo(() => new Map(exploreItems.map((i) => [i.id, i.title])), [exploreItems]);
+  const placeById = useMemo(() => new Map(exploreItems.map((i) => [i.id, i])), [exploreItems]);
 
   function onDelete(id: string) {
     startTransition(() => {
@@ -57,8 +64,7 @@ export function PhotosView({
           <p className="eyebrow text-muted mb-1">The album</p>
           <h1 className="font-display text-ink text-3xl font-semibold">Photos</h1>
           <p className="text-muted mt-1 text-sm">
-            Upload trip photos and tag them to a place, a day, or a moment. They’ll feature in your
-            trip recap.
+            Upload trip photos and tag them to a place, a day, or a moment.
           </p>
         </div>
         <Button onClick={() => setShowUpload(true)}>
@@ -91,13 +97,12 @@ export function PhotosView({
           No photos yet — add your first one.
         </p>
       ) : (
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
+        <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
           {optimistic.map((p) => (
             <PhotoTile
               key={p.id}
               photo={p}
-              placeTitle={p.linkedItemId ? titleById.get(p.linkedItemId) : undefined}
-              days={days}
+              place={p.linkedItemId ? placeById.get(p.linkedItemId) : undefined}
               onOpen={() => setActive(p)}
             />
           ))}
@@ -109,40 +114,43 @@ export function PhotosView({
 
 function PhotoTile({
   photo,
-  placeTitle,
-  days,
+  place,
   onOpen,
 }: {
   photo: PhotoDTO;
-  placeTitle?: string;
-  days: string[];
+  place?: LinkOption;
   onOpen: () => void;
 }) {
-  const tag = placeTitle ?? photo.caption ?? (photo.day ? dayLabel(photo.day, days) : null);
+  // Caption priority: linked place (with its category icon) → moment → date → blank.
+  const PlaceIcon = place ? getCategory(place.category).icon : null;
+  const caption = place?.title ?? photo.caption ?? (photo.day ? dayLabel(photo.day) : '');
+
   return (
     <button
       type="button"
       onClick={onOpen}
-      className="group border-border bg-canvas relative aspect-square overflow-hidden rounded-lg border"
+      className="group border-border bg-surface shadow-card hover:shadow-lift rounded-md border p-2 text-left transition-shadow"
     >
-      <Image
-        src={`/api/photos/${photo.id}`}
-        alt={photo.caption ?? photo.fileName}
-        fill
-        sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw"
-        unoptimized
-        className="object-cover transition-transform duration-200 group-hover:scale-[1.03]"
-      />
-      {tag && (
-        <span className="from-ink/70 absolute inset-x-0 bottom-0 flex items-center gap-1 bg-gradient-to-t to-transparent p-2 text-left font-sans text-[11px] text-white">
-          {placeTitle ? (
-            <MapPin className="size-3 shrink-0" aria-hidden />
-          ) : photo.caption ? null : (
-            <CalendarDays className="size-3 shrink-0" aria-hidden />
-          )}
-          <span className="truncate">{tag}</span>
-        </span>
-      )}
+      <div className="bg-canvas relative aspect-square w-full overflow-hidden rounded-sm">
+        <Image
+          src={`/api/photos/${photo.id}`}
+          alt={photo.caption ?? photo.fileName}
+          fill
+          sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw"
+          unoptimized
+          className="object-cover transition-transform duration-200 group-hover:scale-[1.03]"
+        />
+      </div>
+      <figcaption className="text-ink mt-2 flex items-center justify-center gap-1 px-0.5 pb-0.5 text-center font-sans text-[11px]">
+        {PlaceIcon && place && (
+          <PlaceIcon
+            className="size-3 shrink-0"
+            style={{ color: categoryColor(place.category) }}
+            aria-hidden
+          />
+        )}
+        <span className="truncate">{caption || ' '}</span>
+      </figcaption>
     </button>
   );
 }
@@ -201,7 +209,9 @@ function UploadPhotoModal({
           {fileError ? (
             <p className="text-danger mt-1 text-xs">{fileError}</p>
           ) : (
-            <p className="text-muted mt-1 text-xs">JPEG, PNG, WebP or HEIC, up to {MAX_PHOTO_MB} MB.</p>
+            <p className="text-muted mt-1 text-xs">
+              JPEG, PNG, WebP or HEIC, up to {MAX_PHOTO_MB} MB.
+            </p>
           )}
         </div>
         <PhotoTagFields exploreItems={exploreItems} days={days} />
@@ -242,7 +252,12 @@ function PhotoModal({
   }, [state, onClose]);
 
   return (
-    <Modal title={photo.caption || 'Photo'} eyebrow="Photo" onClose={onClose} panelClassName="max-w-xl">
+    <Modal
+      title={photo.caption || 'Photo'}
+      eyebrow="Photo"
+      onClose={onClose}
+      panelClassName="max-w-xl"
+    >
       <form action={action} className="space-y-4 p-5">
         <div className="bg-canvas relative h-[46vh] w-full overflow-hidden rounded-md">
           <Image

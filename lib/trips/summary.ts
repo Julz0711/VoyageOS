@@ -6,6 +6,7 @@ import { getPackingItems } from '@/lib/packing/queries';
 import { getExpenses } from '@/lib/budget/queries';
 import { getChecklist } from '@/lib/checklist/queries';
 import { getDocuments } from '@/lib/documents/queries';
+import { getPhotos } from '@/lib/photos/queries';
 import { phaseForDate, type ExpensePhase } from '@/config/expenses';
 import type { DocumentKind } from '@/models/Document';
 
@@ -37,6 +38,11 @@ export interface TripSummary {
     total: number;
     preview: { id: string; fileName: string; kind: DocumentKind }[];
   };
+  photos: {
+    total: number;
+    /** Up to 9 photo ids for a 3×3 thumbnail grid. */
+    preview: string[];
+  };
   map: {
     points: { id: string; lat: number; lng: number; category: string }[];
   };
@@ -49,15 +55,17 @@ export async function getTripSummary(
   tripStart: string,
   tripEnd: string,
 ): Promise<TripSummary> {
-  const [items, roadtrips, planEntries, packing, expenses, checklist, docs] = await Promise.all([
-    getExploreItems(userId, tripId),
-    getRoadtrips(userId, tripId),
-    getPlanEntries(userId, tripId),
-    getPackingItems(userId, tripId),
-    getExpenses(userId, tripId),
-    getChecklist(userId, tripId),
-    getDocuments(userId, tripId),
-  ]);
+  const [items, roadtrips, planEntries, packing, expenses, checklist, docs, photos] =
+    await Promise.all([
+      getExploreItems(userId, tripId),
+      getRoadtrips(userId, tripId),
+      getPlanEntries(userId, tripId),
+      getPackingItems(userId, tripId),
+      getExpenses(userId, tripId),
+      getChecklist(userId, tripId),
+      getDocuments(userId, tripId),
+      getPhotos(userId, tripId),
+    ]);
 
   const favorites = items.filter((i) => i.isFavorite);
   const exploreSource = favorites.length > 0 ? favorites : items;
@@ -117,6 +125,10 @@ export async function getTripSummary(
     docs: {
       total: docs.length,
       preview: docs.slice(0, 3).map((d) => ({ id: d.id, fileName: d.fileName, kind: d.kind })),
+    },
+    photos: {
+      total: photos.length,
+      preview: photos.slice(0, 9).map((p) => p.id),
     },
     map: {
       points: items

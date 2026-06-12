@@ -17,7 +17,7 @@ export default async function PhotosPage() {
     getExploreItems(userId, trip.id),
   ]);
 
-  const exploreItems = items.map((i) => ({ id: i.id, title: i.title }));
+  const exploreItems = items.map((i) => ({ id: i.id, title: i.title, category: i.category }));
   const days = tripDays(trip.dateStart, trip.dateEnd).map((d) => format(d, 'yyyy-MM-dd'));
 
   return <PhotosView photos={photos} exploreItems={exploreItems} days={days} />;

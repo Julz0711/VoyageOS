@@ -24,6 +24,20 @@ import { Modal } from '@/components/ui/modal';
 import { MiniMap } from '@/components/trips/MiniMap';
 import { cn } from '@/lib/utils';
 
+/** Polaroid caption: the linked place, else the moment, else the day's date, else blank. */
+function photoCaption(p: { placeTitle?: string; caption?: string; day?: string }): string {
+  if (p.placeTitle) return p.placeTitle;
+  if (p.caption) return p.caption;
+  if (p.day) {
+    try {
+      return format(parseISO(p.day), 'd MMM yyyy');
+    } catch {
+      return p.day;
+    }
+  }
+  return '';
+}
+
 /** Loads a photo (same-origin stream, no canvas taint), downscales it, returns a JPEG data URL. */
 function photoToDataUrl(id: string): Promise<string | null> {
   return new Promise((resolve) => {
@@ -69,7 +83,9 @@ export function TripRecapView({ recap, meta }: { recap: TripRecap; meta: RecapMe
         const resolved = await Promise.all(
           recap.photos.slice(0, 12).map(async (p): Promise<RecapPhotoImage | null> => {
             const dataUrl = await photoToDataUrl(p.id);
-            return dataUrl ? { dataUrl, label: p.placeTitle ?? p.caption ?? '' } : null;
+            // Only show an icon when the caption is the linked place.
+            const category = p.placeTitle ? p.placeCategory : undefined;
+            return dataUrl ? { dataUrl, label: photoCaption(p), category } : null;
           }),
         );
         photos = resolved.filter((x): x is RecapPhotoImage => x != null);
@@ -360,26 +376,38 @@ function RecapSection({
       return (
         <section className="space-y-4">
           <SectionHeading count={photos.length}>Photos</SectionHeading>
-          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
+          <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
             {photos.map((p) => (
-              <div
+              <figure
                 key={p.id}
-                className="border-border bg-canvas relative aspect-square overflow-hidden rounded-lg border"
+                className="border-border bg-surface shadow-card rounded-md border p-2"
               >
-                <Image
-                  src={`/api/photos/${p.id}`}
-                  alt={p.caption ?? ''}
-                  fill
-                  sizes="(max-width: 640px) 50vw, 25vw"
-                  unoptimized
-                  className="object-cover"
-                />
-                {(p.placeTitle || p.caption) && (
-                  <span className="from-ink/70 absolute inset-x-0 bottom-0 truncate bg-gradient-to-t to-transparent p-2 font-sans text-[11px] text-white">
-                    {p.placeTitle ?? p.caption}
-                  </span>
-                )}
-              </div>
+                <div className="bg-canvas relative aspect-square w-full overflow-hidden rounded-sm">
+                  <Image
+                    src={`/api/photos/${p.id}`}
+                    alt={p.caption ?? ''}
+                    fill
+                    sizes="(max-width: 640px) 50vw, 25vw"
+                    unoptimized
+                    className="object-cover"
+                  />
+                </div>
+                <figcaption className="text-ink mt-2 flex items-center justify-center gap-1 px-0.5 pb-0.5 text-center font-sans text-[11px]">
+                  {p.placeTitle &&
+                    p.placeCategory &&
+                    (() => {
+                      const Icon = getCategory(p.placeCategory!).icon;
+                      return (
+                        <Icon
+                          className="size-3 shrink-0"
+                          style={{ color: categoryColor(p.placeCategory!) }}
+                          aria-hidden
+                        />
+                      );
+                    })()}
+                  <span className="truncate">{photoCaption(p) || ' '}</span>
+                </figcaption>
+              </figure>
             ))}
           </div>
         </section>

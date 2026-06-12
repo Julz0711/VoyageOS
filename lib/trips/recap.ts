@@ -21,6 +21,7 @@ export interface RecapPhoto {
   caption?: string;
   day?: string;
   placeTitle?: string;
+  placeCategory?: string;
 }
 
 export interface RecapItem {
@@ -80,6 +81,7 @@ export async function getTripRecap(userId: string, trip: TripDTO): Promise<TripR
   ]);
 
   const titleById = new Map(items.map((i) => [i.id, i.title]));
+  const categoryById = new Map(items.map((i) => [i.id, i.category]));
 
   const byPhase: Record<ExpensePhase, number> = { pre: 0, during: 0, post: 0 };
   const byCategoryMap = new Map<string, number>();
@@ -121,6 +123,7 @@ export async function getTripRecap(userId: string, trip: TripDTO): Promise<TripR
       caption: p.caption,
       day: p.day,
       placeTitle: p.linkedItemId ? titleById.get(p.linkedItemId) : undefined,
+      placeCategory: p.linkedItemId ? categoryById.get(p.linkedItemId) : undefined,
     })),
     items: items.map((i) => ({
       id: i.id,
