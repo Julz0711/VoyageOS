@@ -30,6 +30,50 @@ async function ownedLinkedItem(
   return owned ? id : undefined;
 }
 
+export async function uploadManyPhotos(_prev: PhotoState, formData: FormData): Promise<PhotoState> {
+  const { userId, trip } = await requireActiveTrip();
+  if (!trip) return { error: 'No active trip' };
+
+  const files = (formData.getAll('file') as File[]).filter((f) => f instanceof File && f.size > 0);
+  if (!files.length) return { error: 'Choose at least one photo' };
+
+  await connectToDatabase();
+  const failed: string[] = [];
+  let uploaded = 0;
+
+  for (const file of files) {
+    if (file.size > MAX_PHOTO_BYTES) {
+      failed.push(`${file.name} (too large)`);
+      continue;
+    }
+    if (!isAllowedPhotoMime(file.type)) {
+      failed.push(`${file.name} (not an image)`);
+      continue;
+    }
+    try {
+      const storageKey = buildStorageKey(userId, trip.id, file.name);
+      const bytes = Buffer.from(await file.arrayBuffer());
+      await putObject(storageKey, bytes, file.type);
+      await Photo.create({
+        tripId: trip.id,
+        userId,
+        fileName: file.name.slice(0, 200),
+        mimeType: file.type,
+        sizeBytes: file.size,
+        storageKey,
+      });
+      uploaded++;
+    } catch {
+      failed.push(`${file.name} (upload failed)`);
+    }
+  }
+
+  revalidatePath('/photos');
+  if (uploaded === 0) return { error: failed[0] ?? 'Upload failed' };
+  if (failed.length) return { error: `${uploaded} uploaded — failed: ${failed.join(', ')}` };
+  return { ok: true };
+}
+
 export async function uploadPhoto(_prev: PhotoState, formData: FormData): Promise<PhotoState> {
   const { userId, trip } = await requireActiveTrip();
   if (!trip) return { error: 'No active trip' };
