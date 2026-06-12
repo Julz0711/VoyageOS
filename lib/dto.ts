@@ -125,3 +125,15 @@ export interface DocumentDTO {
   linkedItemId?: string;
   notes?: string;
 }
+
+export interface PhotoDTO {
+  id: string;
+  tripId: string;
+  fileName: string;
+  mimeType: string;
+  sizeBytes: number;
+  caption?: string;
+  linkedItemId?: string;
+  day?: string; // YYYY-MM-DD
+  createdAt: string; // ISO
+}

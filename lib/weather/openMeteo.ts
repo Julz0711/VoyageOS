@@ -111,9 +111,11 @@ function ymd(d: Date): string {
 }
 
 /**
- * Rich daily forecast for the part of the trip window that falls within Open-Meteo's forecast
- * horizon (today … +15 days). Includes extra daily stats and hourly data for day-detail views.
- * Days outside the horizon aren't returned (the caller shows seasonal averages instead).
+ * Rich daily weather for the part of the trip window Open-Meteo can serve from one call: the
+ * recent past (−92 days, actual observed/reanalysis values) through the forecast horizon (+15
+ * days). Past trip days therefore show what ACTUALLY happened rather than seasonal averages.
+ * Days outside this window (further future, or >92 days ago) aren't returned — the caller falls
+ * back to seasonal averages there. Includes extra daily stats + hourly data for day-detail views.
  */
 export async function getTripForecast(
   lat: number,
@@ -125,12 +127,15 @@ export async function getTripForecast(
   today.setHours(0, 0, 0, 0);
   const horizon = new Date(today);
   horizon.setDate(horizon.getDate() + 15);
+  // Open-Meteo's forecast endpoint also serves up to 92 days of recent past in the same request.
+  const pastHorizon = new Date(today);
+  pastHorizon.setDate(pastHorizon.getDate() - 92);
 
   const start = new Date(`${startISO.slice(0, 10)}T00:00:00`);
   const end = new Date(`${endISO.slice(0, 10)}T00:00:00`);
-  const reqStart = start > today ? start : today;
+  const reqStart = start > pastHorizon ? start : pastHorizon;
   const reqEnd = end < horizon ? end : horizon;
-  // trip is fully in the past or beyond the forecast horizon
+  // trip is entirely beyond the forecast horizon or more than 92 days in the past
   if (reqStart > reqEnd) return { days: [], source: null };
 
   const params = new URLSearchParams({

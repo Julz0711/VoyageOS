@@ -2,7 +2,7 @@
 
 import { useMemo, useOptimistic, useRef, useState, useTransition } from 'react';
 import { format } from 'date-fns';
-import { Plus, X, Trash2, Search, StickyNote, MapPin, Clock } from 'lucide-react';
+import { Plus, X, Trash2, Search, StickyNote, MapPin, Clock, Lock, LockOpen } from 'lucide-react';
 import type { TripDTO, ExploreItemDTO, PlanEntryDTO } from '@/lib/dto';
 import type { ForecastDay, ForecastSource, ClimateSummary } from '@/lib/weather/openMeteo';
 import { getCategory, categoryColor } from '@/config/categories';
@@ -18,6 +18,7 @@ import { Input } from '@/components/ui/input';
 import { Modal } from '@/components/ui/modal';
 import { WeatherPanel } from '@/components/weather/WeatherPanel';
 import { ShareExportBar } from '@/components/plan/ShareExportBar';
+import { cn } from '@/lib/utils';
 
 type Action =
   | { type: 'add'; entry: PlanEntryDTO }
@@ -72,6 +73,10 @@ export function PlanView({
   const [pickerDay, setPickerDay] = useState<{ key: string; label: string } | null>(null);
   const [openEntryId, setOpenEntryId] = useState<string | null>(null);
   const [confirmClear, setConfirmClear] = useState(false);
+  // Past days auto-lock (read-only) so the trip recap reflects what actually happened; a day can
+  // be temporarily unlocked to backfill or fix an entry.
+  const [unlockedDays, setUnlockedDays] = useState<Set<string>>(() => new Set());
+  const today = format(new Date(), 'yyyy-MM-dd');
   const tempIdRef = useRef(0);
 
   const days = useMemo(
@@ -169,10 +174,14 @@ export function PlanView({
         {days.map((day, i) => {
           const key = format(day, 'yyyy-MM-dd');
           const dayEntries = entriesForDay(optimistic, key);
+          const locked = key < today && !unlockedDays.has(key);
           return (
             <section
               key={key}
-              className="animate-fade-up border-border bg-surface shadow-card flex flex-col rounded-lg border p-4"
+              className={cn(
+                'animate-fade-up border-border bg-surface shadow-card flex flex-col rounded-lg border p-4',
+                locked && 'bg-canvas/40',
+              )}
               style={{ animationDelay: `${Math.min(i, 8) * 35}ms` }}
             >
               <div className="flex items-start justify-between gap-2">
@@ -182,36 +191,58 @@ export function PlanView({
                     {format(day, 'EEE d MMM')}
                   </span>
                 </div>
-                {dayEntries.length > 0 && (
-                  <span className="bg-primary text-primary-foreground flex size-6 items-center justify-center rounded-full font-sans text-[11px]">
-                    {dayEntries.length}
+                {locked ? (
+                  <span
+                    className="text-muted/70 flex size-6 items-center justify-center"
+                    title="Day complete"
+                  >
+                    <Lock className="size-3.5" aria-hidden />
                   </span>
+                ) : (
+                  dayEntries.length > 0 && (
+                    <span className="bg-primary text-primary-foreground flex size-6 items-center justify-center rounded-full font-sans text-[11px]">
+                      {dayEntries.length}
+                    </span>
+                  )
                 )}
               </div>
 
               <div className="mt-3 flex-1 space-y-2">
                 {dayEntries.length === 0 ? (
-                  <p className="text-muted/70 py-4 text-sm italic">Open day</p>
+                  <p className="text-muted/70 py-4 text-sm italic">
+                    {locked ? 'Nothing logged' : 'Open day'}
+                  </p>
                 ) : (
                   dayEntries.map((entry) => (
                     <EntryRow
                       key={entry.id}
                       entry={entry}
+                      locked={locked}
                       onSelect={() => setOpenEntryId(entry.id)}
                     />
                   ))
                 )}
               </div>
 
-              <button
-                type="button"
-                onClick={() =>
-                  setPickerDay({ key, label: `Day ${i + 1} · ${format(day, 'EEE d MMM')}` })
-                }
-                className="border-border text-muted hover:border-ink/25 hover:text-ink mt-3 flex w-full items-center justify-center gap-1.5 rounded-md border border-dashed py-2 text-sm font-medium transition-colors"
-              >
-                <Plus className="size-4" aria-hidden /> Add
-              </button>
+              {locked ? (
+                <button
+                  type="button"
+                  onClick={() => setUnlockedDays((s) => new Set(s).add(key))}
+                  className="text-muted/70 hover:text-ink mt-3 flex w-full items-center justify-center gap-1.5 rounded-md py-2 text-xs font-medium transition-colors"
+                >
+                  <LockOpen className="size-3.5" aria-hidden /> Day complete · Unlock to edit
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() =>
+                    setPickerDay({ key, label: `Day ${i + 1} · ${format(day, 'EEE d MMM')}` })
+                  }
+                  className="border-border text-muted hover:border-ink/25 hover:text-ink mt-3 flex w-full items-center justify-center gap-1.5 rounded-md border border-dashed py-2 text-sm font-medium transition-colors"
+                >
+                  <Plus className="size-4" aria-hidden /> Add
+                </button>
+              )}
             </section>
           );
         })}
@@ -281,7 +312,15 @@ export function PlanView({
   );
 }
 
-function EntryRow({ entry, onSelect }: { entry: PlanEntryDTO; onSelect: () => void }) {
+function EntryRow({
+  entry,
+  locked,
+  onSelect,
+}: {
+  entry: PlanEntryDTO;
+  locked?: boolean;
+  onSelect: () => void;
+}) {
   const color = entry.category ? categoryColor(entry.category) : 'var(--vos-color-muted)';
   const Icon = entry.category ? getCategory(entry.category).icon : StickyNote;
   const meta = [
@@ -292,12 +331,8 @@ function EntryRow({ entry, onSelect }: { entry: PlanEntryDTO; onSelect: () => vo
     .filter(Boolean)
     .join(' · ');
 
-  return (
-    <button
-      type="button"
-      onClick={onSelect}
-      className="bg-canvas/60 hover:bg-canvas flex w-full items-center gap-2.5 rounded-md p-2 text-left transition-colors"
-    >
+  const inner = (
+    <>
       <span
         className="flex size-8 shrink-0 items-center justify-center rounded-full"
         style={{ backgroundColor: `color-mix(in srgb, ${color} 16%, transparent)`, color }}
@@ -308,6 +343,23 @@ function EntryRow({ entry, onSelect }: { entry: PlanEntryDTO; onSelect: () => vo
         <span className="text-ink block truncate text-sm font-medium">{entry.title}</span>
         {meta && <span className="text-muted block truncate font-sans text-[11px]">{meta}</span>}
       </span>
+    </>
+  );
+
+  // Locked (past) days are read-only — render a static row, not a button.
+  if (locked) {
+    return (
+      <div className="bg-canvas/40 flex w-full items-center gap-2.5 rounded-md p-2">{inner}</div>
+    );
+  }
+
+  return (
+    <button
+      type="button"
+      onClick={onSelect}
+      className="bg-canvas/60 hover:bg-canvas flex w-full items-center gap-2.5 rounded-md p-2 text-left transition-colors"
+    >
+      {inner}
     </button>
   );
 }

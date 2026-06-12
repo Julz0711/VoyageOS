@@ -1,6 +1,6 @@
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
-import { ChevronLeft, Pencil } from 'lucide-react';
+import { ChevronLeft, Pencil, ScrollText } from 'lucide-react';
 import { requireSession } from '@/lib/auth/dal';
 import { getTripById } from '@/lib/trips/queries';
 import { getTripSummary } from '@/lib/trips/summary';
@@ -47,6 +47,11 @@ export default async function TripSummaryPage({ params }: { params: Promise<{ id
           {strings.nav.dashboard}
         </Link>
         <div className="flex shrink-0 items-center gap-2">
+          <Link href={`/trips/${trip.id}/recap`}>
+            <Button variant={countdown.state === 'past' ? 'primary' : 'secondary'} size="sm">
+              <ScrollText className="size-4" aria-hidden /> Recap
+            </Button>
+          </Link>
           <Link href={`/trips/${trip.id}/edit`}>
             <Button variant="secondary" size="sm">
               <Pencil className="size-4" aria-hidden /> Edit

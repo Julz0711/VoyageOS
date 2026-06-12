@@ -10,6 +10,7 @@ import {
   Wallet,
   ListChecks,
   Route,
+  Images,
 } from 'lucide-react';
 import { strings } from '@/lib/strings';
 
@@ -31,6 +32,7 @@ export const navItems: NavItem[] = [
   { href: '/budget', label: strings.nav.budget, icon: Wallet },
   { href: '/checklist', label: strings.nav.checklist, icon: ListChecks },
   { href: '/docs', label: strings.nav.docs, icon: FileText },
+  { href: '/photos', label: strings.nav.photos, icon: Images },
 ];
 
 const find = (href: string): NavItem => navItems.find((i) => i.href === href)!;

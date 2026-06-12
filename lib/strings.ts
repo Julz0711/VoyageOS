@@ -17,6 +17,7 @@ export const strings = {
     checklist: 'Checklist',
     roadtrips: 'Roadtrips',
     docs: 'Docs',
+    photos: 'Photos',
     more: 'More',
     settings: 'Settings',
   },

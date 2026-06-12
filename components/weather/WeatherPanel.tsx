@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from 'react';
 import { format } from 'date-fns';
-import { Droplets, Wind, Sunrise, Sunset, Sun, X, MapPin } from 'lucide-react';
+import { Droplets, Wind, Sunrise, Sunset, Sun, X, MapPin, Check } from 'lucide-react';
 import type { ForecastDay, ForecastSource, ClimateSummary } from '@/lib/weather/openMeteo';
 import { tripDays } from '@/lib/dates';
 import { wmoInfo, wmoColor } from '@/lib/weather/wmo';
@@ -44,6 +44,7 @@ export function WeatherPanel({
   const byDate = useMemo(() => new Map(forecast.map((f) => [f.date, f])), [forecast]);
   const days = useMemo(() => tripDays(tripStart, tripEnd), [tripStart, tripEnd]);
   const [selected, setSelected] = useState<Date | null>(null);
+  const todayKey = ymd(new Date());
 
   const hasGaps = days.some((d) => !byDate.has(ymd(d)));
   const selectedFc = selected ? byDate.get(ymd(selected)) : undefined;
@@ -59,15 +60,18 @@ export function WeatherPanel({
         {sourceLabel(source)}
       </p>
 
-      <div className="no-scrollbar -mx-1 flex gap-2 overflow-x-auto px-1 pb-1">
+      <div className="no-scrollbar -mx-1.5 flex gap-2 overflow-x-auto px-1.5 py-1.5">
         {days.map((day) => {
-          const fc = byDate.get(ymd(day));
+          const key = ymd(day);
+          const fc = byDate.get(key);
           return (
             <DayCard
-              key={ymd(day)}
+              key={key}
               day={day}
               fc={fc}
               climate={climate}
+              isToday={key === todayKey}
+              isPast={key < todayKey}
               onClick={() => setSelected(day)}
             />
           );
@@ -99,11 +103,15 @@ function DayCard({
   day,
   fc,
   climate,
+  isToday,
+  isPast,
   onClick,
 }: {
   day: Date;
   fc?: ForecastDay;
   climate: ClimateSummary | null;
+  isToday?: boolean;
+  isPast?: boolean;
   onClick: () => void;
 }) {
   const Icon = fc ? wmoInfo(fc.code).icon : Sun;
@@ -115,14 +123,28 @@ function DayCard({
       onClick={onClick}
       style={{ '--c': accent } as React.CSSProperties}
       className={cn(
-        'group flex min-w-[5.25rem] shrink-0 flex-col items-center gap-1 rounded-md border border-border px-3 py-3 text-center transition-colors duration-200',
+        'group relative flex min-w-[5.25rem] shrink-0 flex-col items-center gap-1 rounded-md border px-3 py-3 text-center transition-colors duration-200',
         'hover:border-[color-mix(in_srgb,var(--c)_50%,var(--vos-color-border))]',
         'hover:bg-[color-mix(in_srgb,var(--c)_10%,var(--vos-color-surface))]',
         'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color-mix(in_srgb,var(--c)_55%,transparent)]',
+        isToday
+          ? 'border-accent-2 ring-accent-2 ring-1'
+          : 'border-border',
+        isPast && 'opacity-60',
         fc ? 'bg-canvas/40' : 'bg-canvas/20',
       )}
     >
-      <span className="eyebrow text-muted">{format(day, 'EEE')}</span>
+      {/* Finished days get a check; today gets a marker dot — so the timeline reads at a glance. */}
+      {isPast && (
+        <span className="text-muted/60 absolute top-1.5 right-1.5" title="Finished">
+          <Check className="size-3" aria-hidden />
+        </span>
+      )}
+      {isToday ? (
+        <span className="text-accent-2 eyebrow font-semibold">Today</span>
+      ) : (
+        <span className="eyebrow text-muted">{format(day, 'EEE')}</span>
+      )}
       <span className="text-muted/70 font-sans text-[11px]">{format(day, 'd MMM')}</span>
       <Icon
         className={cn(
