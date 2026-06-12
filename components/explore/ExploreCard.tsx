@@ -56,10 +56,7 @@ export function ExploreCard({
               style={{ backgroundColor: color }}
               aria-hidden
             />
-            <span className="truncate">
-              {category.label}
-              {band ? ` · ${bandLabel[band] ?? band}` : ''}
-            </span>
+            <span className="truncate">{category.label}</span>
           </p>
           <span className="flex shrink-0 items-center gap-1">
             {item.dontMiss && <Star className="fill-accent text-accent size-3.5" aria-hidden />}
@@ -90,16 +87,7 @@ export function ExploreCard({
 
         <div className="text-muted mt-3 flex items-center gap-3 overflow-hidden font-sans text-[11px]">
           <span className="text-muted/70 shrink-0">Nº{String(index + 1).padStart(2, '0')}</span>
-          {item.distanceFromBase?.minutes != null && (
-            <span className="shrink-0">
-              {String(item.distanceFromBase.minutes).padStart(2, '0')} MIN
-            </span>
-          )}
-          {item.location && (
-            <span className="truncate">
-              {item.location.lat.toFixed(2)}, {item.location.lng.toFixed(2)}
-            </span>
-          )}
+          {band && <span className="text-muted/70 shrink-0">{bandLabel[band] ?? band}</span>}
         </div>
       </div>
     </article>
