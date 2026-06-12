@@ -175,9 +175,6 @@ export function ExploreDetailModal({
                 {item.distanceFromBase && (
                   <Fact label="Distance">
                     {bandLabel[item.distanceFromBase.band] ?? item.distanceFromBase.band}
-                    {item.distanceFromBase.minutes != null
-                      ? ` · ${item.distanceFromBase.minutes} min`
-                      : ''}
                   </Fact>
                 )}
                 {item.location && (
