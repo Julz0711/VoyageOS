@@ -1,3 +1,4 @@
+import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import { getOptionalUserId } from '@/lib/auth/dal';
 import { signInDev, signInGoogle, signInDiscord } from '@/lib/auth/actions';
@@ -73,6 +74,14 @@ export default async function LoginPage() {
             Dev sign-in runs without keys. Set Google or Discord OAuth env vars for real sign-in.
           </p>
         )}
+
+        <p className="text-muted mt-6 text-center font-sans text-[11px]">
+          By signing in you agree to our{' '}
+          <Link href="/privacy" className="underline underline-offset-2">
+            Privacy Policy
+          </Link>
+          .
+        </p>
       </div>
     </div>
   );

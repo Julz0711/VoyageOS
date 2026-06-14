@@ -1,8 +1,10 @@
+import Link from 'next/link';
 import { requireSession } from '@/lib/auth/dal';
 import { getAiInfo } from '@/lib/ai/userSettings';
 import { getOpenRouterFreeModels } from '@/lib/ai/openrouter';
 import { signOutAction } from '@/lib/auth/actions';
 import { ByokForm } from '@/components/settings/ByokForm';
+import { DeleteAccountButton } from '@/components/settings/DeleteAccountButton';
 import { Button } from '@/components/ui/button';
 import { strings } from '@/lib/strings';
 
@@ -43,6 +45,26 @@ export default async function SettingsPage() {
             </Button>
           </form>
         </div>
+
+        <div className="border-border bg-surface flex items-center justify-between gap-3 rounded-lg border p-4">
+          <span className="min-w-0">
+            <span className="text-ink block text-sm font-medium">Delete account</span>
+            <span className="text-muted block text-xs">
+              Permanently removes all your data — trips, photos, documents, and your account.
+            </span>
+          </span>
+          <DeleteAccountButton />
+        </div>
+      </div>
+
+      <div className="border-border border-t pt-4">
+        <p className="text-muted text-xs">
+          By using VoyageOS you agree to our{' '}
+          <Link href="/privacy" className="text-ink underline underline-offset-2">
+            Privacy Policy
+          </Link>
+          . Your data is encrypted in transit and at rest and never shared with third parties.
+        </p>
       </div>
     </div>
   );

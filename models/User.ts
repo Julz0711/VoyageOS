@@ -6,15 +6,12 @@ export interface IUser {
   name?: string;
   image?: string;
   /** BYOK AI settings. The key is stored encrypted at rest (never returned to the client). */
-  /** Which assistant is active: 'free' (server Groq) or 'byok' (the user's key). */
   aiActive?: 'free' | 'byok';
-  aiProvider?: string; // provider of the saved BYOK key
-  aiModel?: string; // selected model for the active provider
+  aiProvider?: string;
+  aiModel?: string;
   byokKeyEnc?: string;
-  byokKeyHint?: string; // e.g. "····abcd" for display only
-  /** Show AI usage / rate-limit warnings in chat (token-heavy turns, step-limit pause). Default true. */
+  byokKeyHint?: string;
   aiWarnings?: boolean;
-  /** Whether the first-run starter trip has been seeded (once per user, ever). */
   hasSeeded?: boolean;
 }
 
